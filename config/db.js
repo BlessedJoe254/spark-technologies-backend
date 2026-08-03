@@ -1,5 +1,7 @@
-﻿require("dotenv").config();
+require("dotenv").config();
 const mysql = require("mysql2/promise");
+
+const isLocalHost = (process.env.DB_HOST || "localhost") === "localhost";
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "localhost",
@@ -9,7 +11,9 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: isLocalHost ? undefined : { rejectUnauthorized: true }
 });
 
 module.exports = pool;
+
