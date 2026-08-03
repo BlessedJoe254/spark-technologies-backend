@@ -137,6 +137,11 @@ dist
 !.yarn/sdks
 !.yarn/versions
 
+.env
+   uploads/
+   project-images/
+   team-images/
+   *.bak*
 # Vite files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
