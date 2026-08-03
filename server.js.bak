@@ -1,0 +1,484 @@
+﻿require("dotenv").config();
+const express = require("express");
+const path = require("path");
+const fs = require("fs");
+const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const session = require("express-session");
+const multer = require("multer");
+const pool = require("./config/db");
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const TRAINER_CODE = "T38484692T";
+const ADMIN_EMAIL = "sparktech511@gmail.com";
+const ADMIN_NAME = "Blessed Joe";
+const ADMIN_PASSWORD = "38484692A";
+
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, unique + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || "spark-dev-secret-change-me",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }
+}));
+app.use(express.static(path.join(__dirname, "..", "frontend")));
+
+function requireLogin(req, res, next) {
+  if (!req.session.user) return res.status(401).json({ error: "Please log in." });
+  next();
+}
+function requireRole(role) {
+  return (req, res, next) => {
+    if (!req.session.user || req.session.user.role !== role) {
+      return res.status(403).json({ error: "You are not authorized to do that." });
+    }
+    next();
+  };
+}
+
+async function ensureAdminAccount() {
+  try {
+    const [rows] = await pool.query("SELECT id FROM users WHERE email = ?", [ADMIN_EMAIL]);
+    if (rows.length === 0) {
+      const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      await pool.query(
+        "INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, \"admin\")",
+        [ADMIN_NAME, ADMIN_EMAIL, hash]
+      );
+      console.log("Admin account created:", ADMIN_EMAIL);
+    }
+  } catch (err) {
+    console.warn("Could not verify/create admin account (is MySQL running?):", err.message);
+  }
+}
+
+app.get("/api/dashboard/stats", async (req, res) => {
+  try {
+    const [[{ courseCount }]] = await pool.query("SELECT COUNT(*) AS courseCount FROM courses");
+    const [[{ projectCount }]] = await pool.query("SELECT COUNT(*) AS projectCount FROM projects");
+    const [[{ studentCount }]] = await pool.query("SELECT COUNT(*) AS studentCount FROM users WHERE role = \"student\"");
+    const [[{ messageCount }]] = await pool.query("SELECT COUNT(*) AS messageCount FROM messages WHERE is_read = FALSE");
+    res.json({ courses: courseCount, projects: projectCount, students: studentCount, messages: messageCount });
+  } catch (err) {
+    console.warn("Dashboard stats: database not reachable, sending mock data.", err.message);
+    res.json({ courses: 7, projects: 3, students: 12, messages: 2 });
+  }
+});
+
+app.get("/api/courses", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, title, description, level, duration_weeks, fee_kes FROM courses ORDER BY created_at DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.warn("Courses: database not reachable, sending mock data.", err.message);
+    res.json([
+      { id: 1, title: "IoT & Home Automation", description: "Build connected devices and automate homes using sensors and microcontrollers.", level: "Intermediate", duration_weeks: 4, fee_kes: 2000 },
+      { id: 2, title: "PCB Design", description: "Design and lay out printed circuit boards for real electronics projects.", level: "Intermediate", duration_weeks: 4, fee_kes: 2000 },
+      { id: 3, title: "CCTV & Systems Installation", description: "Install and configure CCTV and security systems from the ground up.", level: "Beginner", duration_weeks: 4, fee_kes: 2000 },
+      { id: 4, title: "Graphics Design", description: "Learn design fundamentals and industry-standard design tools.", level: "Beginner", duration_weeks: 4, fee_kes: 2000 },
+      { id: 5, title: "Web Development", description: "Build websites and web apps with HTML, CSS, JavaScript and backend basics.", level: "Beginner", duration_weeks: 4, fee_kes: 2000 },
+      { id: 6, title: "Research & Technical Writing", description: "Structure, write and edit technical documents and research reports.", level: "Beginner", duration_weeks: 4, fee_kes: 2000 },
+      { id: 7, title: "AI For Everyone", description: "An accessible introduction to how AI works and how to use it well.", level: "Beginner", duration_weeks: 4, fee_kes: null }
+    ]);
+  }
+});
+
+// ---------- Auth ----------
+app.post("/api/register", async (req, res) => {
+  try {
+    const { full_name, email, phone, role, trainer_code, password } = req.body;
+
+    if (!full_name || !email || !phone || !password || !role) {
+      return res.status(400).json({ error: "All fields are required." });
+    }
+    if (!["student", "trainer"].includes(role)) {
+      return res.status(400).json({ error: "Invalid role selected." });
+    }
+    if (role === "trainer" && trainer_code !== TRAINER_CODE) {
+      return res.status(403).json({ error: "Invalid trainer invite code." });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters." });
+    }
+
+    const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: "An account with that email already exists." });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const [result] = await pool.query(
+      "INSERT INTO users (full_name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+      [full_name, email, phone, password_hash, role]
+    );
+
+    req.session.user = { id: result.insertId, full_name, email, role };
+    res.json({ success: true, user: req.session.user });
+  } catch (err) {
+    console.error("Register error:", err.message);
+    res.status(500).json({ error: "Could not connect to the database. Please make sure MySQL is running." });
+  }
+});
+
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT id, full_name, email, password_hash, role FROM users WHERE email = ?",
+      [email]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    const user = rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    req.session.user = { id: user.id, full_name: user.full_name, email: user.email, role: user.role };
+    res.json({ success: true, user: req.session.user });
+  } catch (err) {
+    console.error("Login error:", err.message);
+    res.status(500).json({ error: "Could not connect to the database. Please make sure MySQL is running." });
+  }
+});
+
+app.post("/api/logout", (req, res) => {
+  req.session.destroy(() => res.json({ success: true }));
+});
+
+app.get("/api/session", (req, res) => {
+  res.json({ user: req.session.user || null });
+});
+
+// ---------- Student: enroll + my courses + payment submission ----------
+app.post("/api/enroll", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    const { course_id } = req.body;
+    if (!course_id) return res.status(400).json({ error: "Course is required." });
+
+    await pool.query(
+      "INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)",
+      [req.session.user.id, course_id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ error: "You are already enrolled in this course." });
+    }
+    console.error("Enroll error:", err.message);
+    res.status(500).json({ error: "Could not enroll right now. Please make sure MySQL is running." });
+  }
+});
+
+app.get("/api/my-courses", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT c.id, c.title, c.level, c.duration_weeks, c.fee_kes, c.class_link, e.has_paid, e.payment_code " +
+      "FROM enrollments e JOIN courses c ON c.id = e.course_id " +
+      "WHERE e.user_id = ? ORDER BY e.enrolled_at DESC",
+      [req.session.user.id]
+    );
+
+    const unlockedIds = rows.filter(r => r.has_paid || r.fee_kes === null).map(r => r.id);
+    let notesByCourse = {};
+    if (unlockedIds.length > 0) {
+      const [noteRows] = await pool.query(
+        "SELECT id, course_id, title, original_filename FROM notes WHERE course_id IN (?) ORDER BY uploaded_at DESC",
+        [unlockedIds]
+      );
+      noteRows.forEach(n => {
+        if (!notesByCourse[n.course_id]) notesByCourse[n.course_id] = [];
+        notesByCourse[n.course_id].push({ id: n.id, title: n.title, original_filename: n.original_filename });
+      });
+    }
+
+    const result = rows.map(r => {
+      const unlocked = !!r.has_paid || r.fee_kes === null;
+      return {
+        id: r.id,
+        title: r.title,
+        level: r.level,
+        duration_weeks: r.duration_weeks,
+        fee_kes: r.fee_kes,
+        has_paid: !!r.has_paid,
+        payment_code: r.payment_code,
+        unlocked,
+        class_link: unlocked ? r.class_link : null,
+        notes: unlocked ? (notesByCourse[r.id] || []) : []
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("My-courses error:", err.message);
+    res.json([]);
+  }
+});
+
+app.post("/api/submit-payment", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    const { course_id, payment_code } = req.body;
+    if (!course_id || !payment_code) {
+      return res.status(400).json({ error: "Course and M-Pesa code are required." });
+    }
+    const [result] = await pool.query(
+      "UPDATE enrollments SET payment_code = ? WHERE user_id = ? AND course_id = ?",
+      [payment_code, req.session.user.id, course_id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Enrollment not found." });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Submit payment error:", err.message);
+    res.status(500).json({ error: "Could not submit your payment code right now." });
+  }
+});
+
+// ---------- Trainer: students, class link, notes ----------
+app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT c.id AS course_id, c.title AS course_title, c.class_link, u.full_name, u.phone, e.has_paid " +
+      "FROM courses c " +
+      "LEFT JOIN enrollments e ON e.course_id = c.id " +
+      "LEFT JOIN users u ON u.id = e.user_id " +
+      "WHERE c.trainer_id = ? ORDER BY c.title, u.full_name",
+      [req.session.user.id]
+    );
+
+    const groups = {};
+    rows.forEach(r => {
+      if (!groups[r.course_id]) {
+        groups[r.course_id] = { course_id: r.course_id, course_title: r.course_title, class_link: r.class_link, students: [], notes: [] };
+      }
+      if (r.full_name) groups[r.course_id].students.push({ full_name: r.full_name, phone: r.phone, has_paid: !!r.has_paid });
+    });
+
+    const courseIds = Object.keys(groups).map(Number);
+    if (courseIds.length > 0) {
+      const [noteRows] = await pool.query(
+        "SELECT id, course_id, title, original_filename FROM notes WHERE course_id IN (?) ORDER BY uploaded_at DESC",
+        [courseIds]
+      );
+      noteRows.forEach(n => {
+        if (groups[n.course_id]) groups[n.course_id].notes.push({ id: n.id, title: n.title, original_filename: n.original_filename });
+      });
+    }
+
+    res.json(Object.values(groups));
+  } catch (err) {
+    console.error("Trainer students error:", err.message);
+    res.json([]);
+  }
+});
+
+app.post("/api/trainer/class-link", requireLogin, requireRole("trainer"), async (req, res) => {
+  try {
+    const { course_id, class_link } = req.body;
+    if (!course_id) return res.status(400).json({ error: "Course is required." });
+
+    const [[course]] = await pool.query("SELECT trainer_id FROM courses WHERE id = ?", [course_id]);
+    if (!course || course.trainer_id !== req.session.user.id) {
+      return res.status(403).json({ error: "This is not your course." });
+    }
+
+    await pool.query("UPDATE courses SET class_link = ? WHERE id = ?", [class_link || null, course_id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Class link error:", err.message);
+    res.status(500).json({ error: "Could not save class link right now." });
+  }
+});
+
+app.post("/api/trainer/notes", requireLogin, requireRole("trainer"), upload.single("file"), async (req, res) => {
+  try {
+    const { course_id, title } = req.body;
+
+    if (!course_id || !title || !req.file) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: "Course, title and a file are all required." });
+    }
+
+    const [[course]] = await pool.query("SELECT trainer_id FROM courses WHERE id = ?", [course_id]);
+    if (!course || course.trainer_id !== req.session.user.id) {
+      fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: "This is not your course." });
+    }
+
+    await pool.query(
+      "INSERT INTO notes (course_id, title, original_filename, stored_filename) VALUES (?, ?, ?, ?)",
+      [course_id, title, req.file.originalname, req.file.filename]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Notes upload error:", err.message);
+    res.status(500).json({ error: "Could not upload the note right now." });
+  }
+});
+
+app.get("/api/notes/:id/download", requireLogin, async (req, res) => {
+  try {
+    const [[note]] = await pool.query(
+      "SELECT n.id, n.course_id, n.original_filename, n.stored_filename, c.trainer_id, c.fee_kes " +
+      "FROM notes n JOIN courses c ON c.id = n.course_id WHERE n.id = ?",
+      [req.params.id]
+    );
+    if (!note) return res.status(404).json({ error: "Note not found." });
+
+    const user = req.session.user;
+    let allowed = false;
+
+    if (user.role === "admin") {
+      allowed = true;
+    } else if (user.role === "trainer" && note.trainer_id === user.id) {
+      allowed = true;
+    } else if (user.role === "student") {
+      const [[enr]] = await pool.query(
+        "SELECT has_paid FROM enrollments WHERE user_id = ? AND course_id = ?",
+        [user.id, note.course_id]
+      );
+      if (enr && (enr.has_paid || note.fee_kes === null)) allowed = true;
+    }
+
+    if (!allowed) return res.status(403).json({ error: "You do not have access to this file." });
+
+    const filePath = path.join(uploadsDir, note.stored_filename);
+    res.download(filePath, note.original_filename);
+  } catch (err) {
+    console.error("Download error:", err.message);
+    res.status(500).json({ error: "Could not download this file right now." });
+  }
+});
+
+// ---------- Admin: overview, assignment, payment verification ----------
+app.get("/api/admin/overview", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT t.id AS trainer_id, t.full_name AS trainer_name, t.phone AS trainer_phone, " +
+      "c.id AS course_id, c.title AS course_title, " +
+      "s.full_name AS student_name, s.phone AS student_phone, e.has_paid " +
+      "FROM users t " +
+      "LEFT JOIN courses c ON c.trainer_id = t.id " +
+      "LEFT JOIN enrollments e ON e.course_id = c.id " +
+      "LEFT JOIN users s ON s.id = e.user_id " +
+      "WHERE t.role = \"trainer\" " +
+      "ORDER BY t.full_name, c.title, s.full_name"
+    );
+
+    const trainers = {};
+    rows.forEach(r => {
+      if (!trainers[r.trainer_id]) {
+        trainers[r.trainer_id] = { id: r.trainer_id, full_name: r.trainer_name, phone: r.trainer_phone, courses: {} };
+      }
+      if (r.course_id) {
+        if (!trainers[r.trainer_id].courses[r.course_id]) {
+          trainers[r.trainer_id].courses[r.course_id] = { course_id: r.course_id, course_title: r.course_title, students: [] };
+        }
+        if (r.student_name) {
+          trainers[r.trainer_id].courses[r.course_id].students.push({
+            full_name: r.student_name, phone: r.student_phone, has_paid: !!r.has_paid
+          });
+        }
+      }
+    });
+
+    const result = Object.values(trainers).map(t => ({
+      id: t.id, full_name: t.full_name, phone: t.phone, courses: Object.values(t.courses)
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error("Admin overview error:", err.message);
+    res.json([]);
+  }
+});
+
+app.get("/api/admin/pending-payments", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT e.id AS enrollment_id, u.full_name, u.phone, c.title AS course_title, e.payment_code " +
+      "FROM enrollments e JOIN users u ON u.id = e.user_id JOIN courses c ON c.id = e.course_id " +
+      "WHERE e.payment_code IS NOT NULL AND e.has_paid = FALSE ORDER BY e.enrolled_at DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Pending payments error:", err.message);
+    res.json([]);
+  }
+});
+
+app.post("/api/admin/mark-paid", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const { enrollment_id } = req.body;
+    if (!enrollment_id) return res.status(400).json({ error: "Enrollment is required." });
+    await pool.query("UPDATE enrollments SET has_paid = TRUE WHERE id = ?", [enrollment_id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Mark paid error:", err.message);
+    res.status(500).json({ error: "Could not update payment status right now." });
+  }
+});
+
+app.get("/api/admin/courses", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT id, title, trainer_id FROM courses ORDER BY title");
+    res.json(rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.get("/api/admin/trainers", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT id, full_name FROM users WHERE role = \"trainer\" ORDER BY full_name");
+    res.json(rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.post("/api/admin/assign-trainer", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const { course_id, trainer_id } = req.body;
+    if (!course_id) return res.status(400).json({ error: "Course is required." });
+    await pool.query("UPDATE courses SET trainer_id = ? WHERE id = ?", [trainer_id || null, course_id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Assign trainer error:", err.message);
+    res.status(500).json({ error: "Could not save assignment right now." });
+  }
+});
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
+});
+
+app.listen(PORT, () => {
+  console.log("Spark Technologies server running at http://localhost:" + PORT);
+  ensureAdminAccount();
+});
