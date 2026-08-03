@@ -1,4 +1,4 @@
-﻿require("dotenv").config();
+require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
@@ -60,7 +60,10 @@ app.use(session({
   saveUninitialized: false,
   cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }
 }));
-app.use(express.static(path.join(__dirname, "..", "frontend")));
+const frontendPath = path.join(__dirname, "..", "frontend");
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+}
 app.use("/project-images", express.static(projectImagesDir));
 app.use("/team-images", express.static(teamImagesDir));
 
@@ -1502,7 +1505,7 @@ app.post("/api/forgot-password", async (req, res) => {
 
     const [[user]] = await pool.query("SELECT id, full_name FROM users WHERE email = ?", [email]);
 
-    // Always respond success, whether or not the account exists — avoids revealing which emails are registered.
+    // Always respond success, whether or not the account exists � avoids revealing which emails are registered.
     if (!user) {
       return res.json({ success: true });
     }
@@ -1563,7 +1566,12 @@ app.post("/api/reset-password", async (req, res) => {
 });
 
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
+  const indexPath = path.join(__dirname, "..", "frontend", "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).json({ message: "Spark Technologies API is running." });
+  }
 });
 
 app.listen(PORT, () => {
@@ -1573,6 +1581,9 @@ app.listen(PORT, () => {
   ensureContactTable();
   ensurePasswordResetTable();
 });
+
+
+
 
 
 
