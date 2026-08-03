@@ -147,7 +147,7 @@ async function ensureAdminAccount() {
     if (rows.length === 0) {
       const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
       await pool.query(
-        "INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, \"admin\")",
+        "INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, 'admin')",
         [ADMIN_NAME, ADMIN_EMAIL, hash]
       );
       console.log("Admin account created:", ADMIN_EMAIL);
@@ -161,7 +161,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
   try {
     const [[{ courseCount }]] = await pool.query("SELECT COUNT(*) AS courseCount FROM courses");
     const [[{ projectCount }]] = await pool.query("SELECT COUNT(*) AS projectCount FROM projects");
-    const [[{ studentCount }]] = await pool.query("SELECT COUNT(*) AS studentCount FROM users WHERE role = \"student\"");
+    const [[{ studentCount }]] = await pool.query("SELECT COUNT(*) AS studentCount FROM users WHERE role = 'student'");
     const [[{ messageCount }]] = await pool.query("SELECT COUNT(*) AS messageCount FROM contact_messages WHERE is_read = FALSE");
     res.json({ courses: courseCount, projects: projectCount, students: studentCount, messages: messageCount });
   } catch (err) {
@@ -174,7 +174,7 @@ app.get("/api/courses", async (req, res) => {
   try {
     const [rows] = await pool.query(
       "SELECT id, title, description, level, duration_weeks, fee_kes FROM courses " +
-      "ORDER BY FIELD(level, \"Beginner\", \"Intermediate\", \"Advanced\"), title"
+      "ORDER BY FIELD(level, 'Beginner', 'Intermediate', 'Advanced'), title"
     );
     res.json(rows);
   } catch (err) {
@@ -660,7 +660,7 @@ app.get("/api/admin/overview", requireLogin, requireRole("admin"), async (req, r
       "LEFT JOIN courses c ON c.trainer_id = t.id " +
       "LEFT JOIN enrollments e ON e.course_id = c.id " +
       "LEFT JOIN users s ON s.id = e.user_id " +
-      "WHERE t.role = \"trainer\" " +
+      "WHERE t.role = 'trainer' " +
       "ORDER BY t.full_name, c.title, s.full_name"
     );
 
@@ -759,7 +759,7 @@ app.get("/api/admin/courses", requireLogin, requireRole("admin"), async (req, re
   try {
     const [rows] = await pool.query(
       "SELECT id, title, level, fee_kes, trainer_id FROM courses " +
-      "ORDER BY FIELD(level, \"Beginner\", \"Intermediate\", \"Advanced\"), title"
+      "ORDER BY FIELD(level, 'Beginner', 'Intermediate', 'Advanced'), title"
     );
     res.json(rows);
   } catch (err) { res.json([]); }
@@ -767,7 +767,7 @@ app.get("/api/admin/courses", requireLogin, requireRole("admin"), async (req, re
 
 app.get("/api/admin/trainers", requireLogin, requireRole("admin"), async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT id, full_name FROM users WHERE role = \"trainer\" ORDER BY full_name");
+    const [rows] = await pool.query("SELECT id, full_name FROM users WHERE role = 'trainer' ORDER BY full_name");
     res.json(rows);
   } catch (err) { res.json([]); }
 });
@@ -849,7 +849,7 @@ app.get("/api/admin/earnings", requireLogin, requireRole("admin"), async (req, r
       "FROM users t " +
       "JOIN courses c ON c.trainer_id = t.id " +
       "JOIN enrollments e ON e.course_id = c.id AND e.has_paid = TRUE " +
-      "WHERE t.role = \"trainer\" AND c.fee_kes IS NOT NULL " +
+      "WHERE t.role = 'trainer' AND c.fee_kes IS NOT NULL " +
       "GROUP BY t.id, t.full_name, c.id, c.fee_kes"
     );
 
@@ -951,11 +951,11 @@ app.post("/api/messages/send", requireLogin, async (req, res) => {
     } else if (sender.role === "admin") {
       if (recipient_type === "trainer") {
         if (!recipient_id) return res.status(400).json({ error: "Trainer is required." });
-        const [[trainer]] = await pool.query("SELECT id FROM users WHERE id = ? AND role = \"trainer\"", [recipient_id]);
+        const [[trainer]] = await pool.query("SELECT id FROM users WHERE id = ? AND role = 'trainer'", [recipient_id]);
         if (!trainer) return res.status(404).json({ error: "Trainer not found." });
         recipientIds = [recipient_id];
       } else if (recipient_type === "all_trainers") {
-        const [trainers] = await pool.query("SELECT id FROM users WHERE role = \"trainer\"");
+        const [trainers] = await pool.query("SELECT id FROM users WHERE role = 'trainer'");
         recipientIds = trainers.map(t => t.id);
       } else {
         return res.status(400).json({ error: "Invalid recipient type for an admin." });
@@ -1034,7 +1034,7 @@ app.get("/api/admin/users", async (req, res) => {
       "SELECT u.id, u.full_name, u.role, u.phone, u.is_active, " +
       "(SELECT COUNT(*) FROM enrollments e WHERE e.user_id = u.id) AS student_count, " +
       "(SELECT COUNT(*) FROM courses c WHERE c.trainer_id = u.id) AS trainer_count " +
-      "FROM users u WHERE u.role IN (\"student\", \"trainer\") ORDER BY u.role, u.full_name"
+      "FROM users u WHERE u.role IN ('student', 'trainer') ORDER BY u.role, u.full_name"
     );
     res.json(rows);
   } catch (err) {
@@ -1581,6 +1581,7 @@ app.listen(PORT, () => {
   ensureContactTable();
   ensurePasswordResetTable();
 });
+
 
 
 
