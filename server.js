@@ -51,6 +51,7 @@ const teamStorage = multer.diskStorage({
 });
 const teamUpload = multer({ storage: teamStorage, limits: { fileSize: 8 * 1024 * 1024 } });
 
+app.set("trust proxy", 1);
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -58,7 +59,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "spark-dev-secret-change-me",
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }
+  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, secure: true, sameSite: "none" }
 }));
 const frontendPath = path.join(__dirname, "..", "frontend");
 if (fs.existsSync(frontendPath)) {
@@ -1581,6 +1582,8 @@ app.listen(PORT, () => {
   ensureContactTable();
   ensurePasswordResetTable();
 });
+
+
 
 
 
