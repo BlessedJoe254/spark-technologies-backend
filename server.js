@@ -81,14 +81,35 @@ function requireRole(role) {
   };
 }
 
-const mailTransporter = nodemailer.createTransport({
+const dns = require("dns");
+
+let mailTransporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
   secure: true,
-  family: 4,
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD
+  }
+});
+
+dns.resolve4("smtp.gmail.com", (err, addresses) => {
+  if (!err && addresses && addresses.length > 0) {
+    console.log("Resolved smtp.gmail.com to IPv4:", addresses[0]);
+    mailTransporter = nodemailer.createTransport({
+      host: addresses[0],
+      port: 465,
+      secure: true,
+      tls: {
+        servername: "smtp.gmail.com"
+      },
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+  } else {
+    console.log("Could not resolve smtp.gmail.com to IPv4, using default transporter. Error:", err);
   }
 });
 
@@ -1585,6 +1606,7 @@ app.listen(PORT, () => {
   ensureContactTable();
   ensurePasswordResetTable();
 });
+
 
 
 
