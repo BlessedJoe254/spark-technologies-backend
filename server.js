@@ -81,37 +81,10 @@ function requireRole(role) {
   };
 }
 
-const dns = require("dns");
-
-let mailTransporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
-  }
-});
-
-dns.resolve4("smtp.gmail.com", (err, addresses) => {
-  if (!err && addresses && addresses.length > 0) {
-    console.log("Resolved smtp.gmail.com to IPv4:", addresses[0]);
-    mailTransporter = nodemailer.createTransport({
-      host: addresses[0],
-      port: 465,
-      secure: true,
-      tls: {
-        servername: "smtp.gmail.com"
-      },
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
-    });
-  } else {
-    console.log("Could not resolve smtp.gmail.com to IPv4, using default transporter. Error:", err);
-  }
-});
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = "onboarding@resend.dev";
+const TEST_RECIPIENT = "joemutugi291@gmail.com"; // Resend test domain can only send here until a real domain is verified
 
 async function ensurePasswordResetTable() {
   try {
@@ -1424,17 +1397,17 @@ app.post("/api/contact", async (req, res) => {
       [name, email, subject || null, message]
     );
 
-    mailTransporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to: ADMIN_EMAIL,
-      replyTo: email,
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: TEST_RECIPIENT,
+      reply_to: email,
       subject: "New contact form message: " + (subject || "No subject"),
       text: "From: " + name + " (" + email + ")\n\n" + message
     }).catch(err => console.warn("Could not send contact notification email:", err.message));
 
-    mailTransporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to: email,
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: TEST_RECIPIENT,
       subject: "We received your message - Spark Technologies",
       text: "Hi " + name + ",\n\n" +
         "Thank you for reaching out to Spark Technologies. We have received your message and will get back to you shortly, usually within 1-2 business days.\n\n" +
@@ -1494,9 +1467,9 @@ app.post("/api/admin/messages/:id/reply", requireLogin, requireRole("admin"), as
 
     const replySubject = "Re: " + (msg.subject || "Your message to Spark Technologies");
 
-    await mailTransporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to: msg.email,
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: TEST_RECIPIENT,
       subject: replySubject,
       text: "Hi " + msg.name + ",\n\n" + reply_body + "\n\n- Spark Technologies"
     });
@@ -1543,9 +1516,9 @@ app.post("/api/forgot-password", async (req, res) => {
       [user.id, code, expiresAt]
     );
 
-    mailTransporter.sendMail({
-      from: process.env.GMAIL_USER,
-      to: email,
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: TEST_RECIPIENT,
       subject: "Your Spark Technologies password reset code",
       text: "Hi " + user.full_name + ",\n\n" +
         "Use the code below to reset your password. It expires in 10 minutes and can only be used once.\n\n" +
@@ -1606,6 +1579,7 @@ app.listen(PORT, () => {
   ensureContactTable();
   ensurePasswordResetTable();
 });
+
 
 
 
