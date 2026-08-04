@@ -1,0 +1,63 @@
+﻿/* ============ SHARED ============
+   Cross-page building blocks: reveal-in animation, the hero
+   panel (circuit/schematic pattern), and the spec-strip stat
+   row. Used by about.html and contact.html (and future pages)
+   so the "signature device" stays visually identical everywhere
+   instead of being redefined per page. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { animation: aboutFadeUp 0.5s ease both; }
+  @keyframes aboutFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ---------- Hero panel ---------- */
+.about-hero-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--ink) 0%, #0F3D28 55%, var(--green-dark) 100%);
+  color: var(--white);
+  padding: 40px 40px 38px;
+  margin-bottom: 22px;
+}
+.about-hero-panel__pattern { position: absolute; inset: 0; opacity: 0.22; pointer-events: none; }
+.about-hero-panel__pattern svg { width: 100%; height: 100%; display: block; }
+.about-hero-panel__pattern .trace { fill: none; stroke: rgba(255,255,255,0.35); stroke-width: 1; }
+.about-hero-panel__pattern .node { fill: rgba(255,255,255,0.35); }
+.about-hero-panel__pattern .pulse {
+  fill: none; stroke: var(--spark); stroke-width: 1.6; stroke-linecap: round;
+  stroke-dasharray: 12 420; animation: aboutPulseTravel 5s linear infinite;
+}
+@keyframes aboutPulseTravel { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -432; } }
+@media (prefers-reduced-motion: reduce) { .about-hero-panel__pattern .pulse { animation: none; } }
+
+.about-hero-panel__content { position: relative; max-width: 620px; }
+.about-hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; letter-spacing: 1.5px;
+  color: var(--spark); margin-bottom: 12px; text-transform: uppercase;
+}
+.about-hero-panel h1 { font-size: 30px; color: var(--white); margin-bottom: 12px; line-height: 1.2; }
+.about-hero-sub { color: #C9E3D4; font-size: 14.5px; line-height: 1.65; margin: 0 0 24px 0; }
+.about-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.btn-ghost-dark { background: transparent; color: var(--white); border: 1px solid rgba(255,255,255,0.35); }
+.btn-ghost-dark:hover { border-color: var(--white); background: rgba(255,255,255,0.08); }
+
+/* ---------- Spec strip (signature device) ---------- */
+.spec-strip { position: relative; display: flex; margin-bottom: 30px; padding-top: 22px; }
+.spec-strip::before { content: ""; position: absolute; top: 4px; left: 0; right: 0; border-top: 1px dashed var(--line); }
+.spec-item { position: relative; flex: 1; text-align: center; padding: 0 12px; }
+.spec-item::before {
+  content: ""; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  width: 9px; height: 9px; border-radius: 50%; background: var(--white); border: 2px solid var(--spark);
+}
+.spec-value { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 23px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.spec-label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 720px) {
+  .spec-strip { flex-wrap: wrap; row-gap: 24px; }
+  .spec-strip::before { display: none; }
+  .spec-item { flex: 1 1 45%; }
+}

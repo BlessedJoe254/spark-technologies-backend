@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projects - Spark Technologies</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/projects.css">
+</head>
+<body>
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <img src="assets/logo-sidebar.png" alt="Spark Technologies">
+      </div>
+      <nav>
+        <span class="nav-label">MAIN</span>
+        <a class="nav-link" href="index.html"><span class="dot"></span> Home</a>
+        <a class="nav-link" href="courses.html"><span class="dot"></span> Courses</a>
+        <a class="nav-link" href="projects.html"><span class="dot"></span> Projects</a>
+        <a class="nav-link" href="about.html"><span class="dot"></span> About Us</a>
+        <a class="nav-link" href="contact.html"><span class="dot"></span> Contact Us</a>
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="login.html"><span class="dot"></span> Login</a>
+        <a class="nav-link" href="register.html"><span class="dot"></span> Create Account</a>
+      </nav>
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar__title">
+          <p class="eyebrow">PROJECTS</p>
+          <h1>Work we have delivered</h1>
+        </div>
+        <div class="topbar__actions" id="topbar-actions"></div>
+      </div>
+
+      <div class="page-header">
+        <p class="lead">A showcase of projects completed by the Spark Technologies team and students - for clients, partners and internal builds.</p>
+      </div>
+
+      <section class="card admin-project-form-card" id="admin-project-form-card" style="display:none;">
+        <div class="section-title">
+          <h2>Post a Project</h2>
+        </div>
+        <form class="project-add-form" id="admin-add-project-form">
+          <input type="text" class="project-title-input" placeholder="Project title" required>
+          <input type="text" class="project-client-input" placeholder="Client name (optional)">
+          <select class="project-status-select" required>
+            <option value="planning">Planning</option>
+            <option value="in_progress">In Progress</option>
+            <option value="testing">Testing</option>
+            <option value="completed" selected>Completed</option>
+          </select>
+          <input type="date" class="project-date-input" placeholder="Completion date">
+          <input type="text" class="project-tags-input" placeholder="Tags, comma separated (e.g. Node.js, MySQL, IoT)">
+          <textarea class="project-summary-input" placeholder="Short summary of the project" rows="3"></textarea>
+          <label class="project-file-label">
+            Project image (optional)
+            <input type="file" class="project-image-input" accept="image/*">
+          </label>
+          <button type="submit" class="btn btn-primary">Post project</button>
+        </form>
+      </section>
+
+      <div class="filter-bar">
+        <div class="search-box">
+          <span>&#128269;</span>
+          <input type="text" id="project-search" placeholder="Search projects...">
+        </div>
+        <div class="level-filters">
+          <button type="button" class="chip active" data-status="All">All</button>
+          <button type="button" class="chip" data-status="completed">Completed</button>
+          <button type="button" class="chip" data-status="testing">Testing</button>
+          <button type="button" class="chip" data-status="in_progress">In Progress</button>
+          <button type="button" class="chip" data-status="planning">Planning</button>
+        </div>
+      </div>
+
+      <section class="project-grid" id="project-grid">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </section>
+
+      <div class="site-footer-note">
+        <span>Spark Technologies - changing ideas into a smart solution.</span>
+        <span>Home . Courses . Projects . About Us . Contact Us</span>
+      </div>
+    </main>
+  </div>
+  <script src="js/main.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/projects.js"></script>
+</body>
+</html>

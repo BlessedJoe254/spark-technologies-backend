@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Spark Technologies</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <img src="assets/logo-sidebar.png" alt="Spark Technologies">
+      </div>
+
+      <nav>
+        <span class="nav-label">MAIN</span>
+        <a class="nav-link" href="index.html"><span class="dot"></span> Home</a>
+        <a class="nav-link" href="courses.html"><span class="dot"></span> Courses</a>
+        <a class="nav-link" href="projects.html"><span class="dot"></span> Projects</a>
+        <a class="nav-link" href="about.html"><span class="dot"></span> About Us</a>
+        <a class="nav-link" href="contact.html"><span class="dot"></span> Contact Us</a>
+
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="login.html"><span class="dot"></span> Login</a>
+        <a class="nav-link" href="register.html"><span class="dot"></span> Create Account</a>
+      </nav>
+
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div class="topbar__title">
+          <p class="eyebrow">DASHBOARD</p>
+        </div>
+        <div class="topbar__actions" id="topbar-actions">
+          <a href="login.html" class="btn btn-ghost">Log In</a>
+          <a href="register.html" class="btn btn-primary">Create Account</a>
+        </div>
+      </div>
+
+      <section class="hero-panel">
+        <div class="hero-panel__pattern" aria-hidden="true">
+          <svg viewBox="0 0 700 200" preserveAspectRatio="none">
+            <path class="trace" d="M0 40 H160 L180 20 L200 60 L220 40 H420 L440 20 L460 60 L480 40 H700"/>
+            <path class="trace" d="M0 140 H120 L140 160 L160 120 L180 140 H500 L520 160 L540 120 L560 140 H700"/>
+            <path class="trace" d="M60 0 V70 L90 90 V200"/>
+            <path class="trace" d="M620 0 V60 L590 85 V200"/>
+            <circle class="node" cx="200" cy="60" r="3"/>
+            <circle class="node" cx="440" cy="20" r="3"/>
+            <circle class="node" cx="160" cy="120" r="3"/>
+            <circle class="node" cx="540" cy="120" r="3"/>
+            <circle class="node" cx="90" cy="90" r="3"/>
+            <path class="pulse" d="M0 40 H160 L180 20 L200 60 L220 40 H420 L440 20 L460 60 L480 40 H700"/>
+          </svg>
+        </div>
+        <div class="hero-panel__content">
+          <p class="hero-eyebrow" id="hero-date">TODAY</p>
+          <h1 id="hero-greeting">Good afternoon, builder.</h1>
+          <p class="hero-sub" id="hero-sub">Here is what is happening across Spark Technologies right now.</p>
+          <div class="hero-actions">
+            <a href="courses.html" class="btn btn-spark">Browse courses</a>
+            <a href="projects.html" class="btn btn-ghost-dark">View projects</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="stat-grid">
+
+        <div class="card stat-card">
+          <div class="stat-card__head">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <span class="stat-trend">+2 this month</span>
+          </div>
+          <div class="stat-value" id="stat-courses">0</div>
+          <div class="stat-label">Courses available</div>
+          <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+            <polyline class="line" points="0,22 15,20 30,21 45,14 60,15 75,9 100,7"/>
+            <circle class="dot" cx="100" cy="7" r="2.5"/>
+          </svg>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-card__head">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></svg>
+            </div>
+            <span class="stat-trend">+1 this week</span>
+          </div>
+          <div class="stat-value" id="stat-projects">0</div>
+          <div class="stat-label">Active projects</div>
+          <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+            <polyline class="line" points="0,18 15,19 30,12 45,14 60,10 75,13 100,8"/>
+            <circle class="dot" cx="100" cy="8" r="2.5"/>
+          </svg>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-card__head">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg>
+            </div>
+            <span class="stat-trend">+3 this week</span>
+          </div>
+          <div class="stat-value" id="stat-students">0</div>
+          <div class="stat-label">Enrolled students</div>
+          <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+            <polyline class="line" points="0,24 15,20 30,21 45,16 60,12 75,13 100,5"/>
+            <circle class="dot" cx="100" cy="5" r="2.5"/>
+          </svg>
+        </div>
+
+        <div class="card stat-card" id="stat-messages-card">
+          <div class="stat-card__head">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 6-10 7L2 6"/></svg>
+            </div>
+            <span class="stat-trend">Unread</span>
+          </div>
+          <div class="stat-value" id="stat-messages">0</div>
+          <div class="stat-label">New messages</div>
+          <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+            <polyline class="line" points="0,10 15,16 30,9 45,18 60,11 75,15 100,12"/>
+            <circle class="dot" cx="100" cy="12" r="2.5"/>
+          </svg>
+        </div>
+
+      </section>
+
+      <section class="card panel" id="student-panel" style="display:none;">
+        <div class="section-title">
+          <h2>My Courses</h2>
+          <a href="courses.html">Browse more</a>
+        </div>
+        <div id="student-course-list"></div>
+
+        <div class="section-title" style="margin-top:22px;">
+          <h2>Messages</h2>
+          <span class="stat-trend" id="student-inbox-count">0 unread</span>
+        </div>
+        <div id="student-inbox-list"></div>
+      </section>
+
+      <section class="card panel" id="trainer-panel" style="display:none;">
+        <div class="section-title">
+          <h2>My Students</h2>
+          <span class="stat-trend" id="trainer-student-count">0 students</span>
+        </div>
+
+        <div class="section-title" style="margin-top:6px;">
+          <h2>Your Earnings</h2>
+        </div>
+        <div id="trainer-earnings"></div>
+
+        <div class="section-title" style="margin-top:22px;">
+          <h2>Your Students</h2>
+        </div>
+        <div id="trainer-course-groups"></div>
+
+        <div class="section-title" style="margin-top:26px;">
+          <h2>Messages from Admin</h2>
+          <span class="stat-trend" id="trainer-inbox-count">0 unread</span>
+        </div>
+        <div id="trainer-inbox-list"></div>
+
+        <div class="section-title" style="margin-top:22px;">
+          <h2>Message a Student</h2>
+        </div>
+        <form class="message-compose-form" id="trainer-compose-form">
+          <select class="msg-recipient-select" required><option value="">Select a student or course...</option></select>
+          <input type="text" class="msg-subject-input" placeholder="Subject" required>
+          <textarea class="msg-body-input" placeholder="Write your message..." rows="3" required></textarea>
+          <button type="submit" class="btn btn-primary">Send message</button>
+        </form>
+        <div id="trainer-sent-list" style="margin-top:14px;"></div>
+      </section>
+
+      <section class="card panel admin-shell" id="admin-panel" style="display:none;">
+        <div class="admin-tabs" id="admin-tabs">
+          <button type="button" class="admin-tab active" data-tab="overview">Overview</button>
+          <button type="button" class="admin-tab" data-tab="finance">Finance</button>
+          <button type="button" class="admin-tab" data-tab="courses">Courses</button>
+          <button type="button" class="admin-tab" data-tab="messages">Messages</button>
+          <button type="button" class="admin-tab" data-tab="users">Users</button>
+          <button type="button" class="admin-tab" data-tab="certificates">Certificates</button>
+        </div>
+
+        <div class="admin-tab-panel" data-tab-panel="overview">
+          <div class="section-title">
+            <h2>Trainers Overview</h2>
+            <span class="stat-trend" id="admin-trainer-count">0 trainers</span>
+          </div>
+          <div id="admin-trainer-groups"></div>
+        </div>
+
+        <div class="admin-tab-panel" data-tab-panel="finance" style="display:none;">
+          <div class="section-title">
+            <h2>Earnings Overview</h2>
+          </div>
+          <div id="admin-earnings"></div>
+
+          <div class="section-title" style="margin-top:26px;">
+            <h2>Pending Payments</h2>
+            <span class="stat-trend" id="admin-pending-count">0 pending</span>
+          </div>
+          <div id="admin-pending-payments"></div>
+        </div>
+
+        <div class="admin-tab-panel" data-tab-panel="courses" style="display:none;">
+          <div class="section-title">
+            <h2>Manage Courses</h2>
+          </div>
+          <form class="course-add-form" id="admin-add-course-form">
+            <input type="text" class="course-title-input" placeholder="Course title" required>
+            <select class="course-level-select" required>
+              <option value="">Level...</option>
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+            <input type="number" class="course-fee-input" placeholder="Fee (KES, blank = free)" min="0">
+            <input type="number" class="course-duration-input" placeholder="Weeks" min="1" value="4">
+            <textarea class="course-description-input" placeholder="Short description" rows="2"></textarea>
+            <button type="submit" class="btn btn-primary">Add course</button>
+          </form>
+          <div id="admin-assign-table" style="margin-top:14px;"></div>
+        </div>
+
+        <div class="admin-tab-panel" data-tab-panel="messages" style="display:none;">
+          <div class="section-title">
+            <h2>Message a Trainer</h2>
+          </div>
+          <form class="message-compose-form" id="admin-compose-form">
+            <select class="msg-recipient-select" required><option value="">Select a trainer...</option></select>
+            <input type="text" class="msg-subject-input" placeholder="Subject" required>
+            <textarea class="msg-body-input" placeholder="Write your message..." rows="3" required></textarea>
+            <button type="submit" class="btn btn-primary">Send message</button>
+          </form>
+          <div id="admin-sent-list" style="margin-top:14px;"></div>
+        </div>
+
+        <div class="admin-tab-panel" data-tab-panel="users" style="display:none;">
+          <div class="section-title">
+            <h2>Manage Users</h2>
+          </div>
+          <div class="user-role-toggle" id="user-role-toggle">
+            <div class="role-toggle-slider" id="role-toggle-slider"></div>
+            <button type="button" class="role-toggle-btn active" data-role="student">
+              Students<span class="role-toggle-count" id="role-count-student">0</span>
+            </button>
+            <button type="button" class="role-toggle-btn" data-role="trainer">
+              Trainers<span class="role-toggle-count" id="role-count-trainer">0</span>
+            </button>
+          </div>
+          <div id="admin-users-table"></div>
+        </div>
+
+        <div class="admin-tab-panel" data-tab-panel="certificates" style="display:none;">
+          <div class="section-title">
+            <h2>Generate Certificates</h2>
+          </div>
+          <div class="cert-controls">
+            <label class="cert-label">Student</label>
+            <select id="cert-student-select" class="cert-select">
+              <option value="">Select a student...</option>
+            </select>
+          </div>
+          <div id="cert-courses-list" class="cert-courses-list"></div>
+          <button type="button" id="cert-generate-btn" class="btn btn-primary" style="margin-top:16px;" disabled>Generate Certificate</button>
+        </div>
+      </section>
+
+      <div class="dash-grid">
+
+        <div class="card panel">
+          <div class="section-title">
+            <h2>Quick links</h2>
+          </div>
+
+          <a class="quick-link" href="courses.html">
+            <div class="ql-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <div>
+              <div class="ql-title">Browse Courses</div>
+              <div class="ql-sub">See what Spark Technologies is teaching right now</div>
+            </div>
+            <span class="ql-arrow">&#8594;</span>
+          </a>
+
+          <a class="quick-link" href="projects.html">
+            <div class="ql-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></svg>
+            </div>
+            <div>
+              <div class="ql-title">View Projects</div>
+              <div class="ql-sub">Work built by the Spark team and students</div>
+            </div>
+            <span class="ql-arrow">&#8594;</span>
+          </a>
+
+          <a class="quick-link" href="contact.html">
+            <div class="ql-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 6-10 7L2 6"/></svg>
+            </div>
+            <div>
+              <div class="ql-title">Contact Us</div>
+              <div class="ql-sub">Questions about a course or a project? Reach out</div>
+            </div>
+            <span class="ql-arrow">&#8594;</span>
+          </a>
+
+          <a class="quick-link" href="register.html" id="ql-register">
+            <div class="ql-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+            </div>
+            <div>
+              <div class="ql-title">Create an Account</div>
+              <div class="ql-sub">Sign up to enroll and track your progress</div>
+            </div>
+            <span class="ql-arrow">&#8594;</span>
+          </a>
+        </div>
+
+        <div class="card panel">
+          <div class="section-title">
+            <h2>Recent activity</h2>
+          </div>
+
+          <div class="timeline" id="recent-activity-list">
+            <div class="empty-state">Loading recent activity...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="site-footer-note">
+        <span>Spark Technologies - changing ideas into a smart solution.</span>
+        <span>Home . Courses . Projects . About Us . Contact Us</span>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/dashboard.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Dancing+Script:wght@600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <div id="cert-template-wrap" style="position:fixed; left:-9999px; top:0;">
+    <div id="cert-template" class="cert-template">
+      <img src="assets/logo-sidebar.png" class="cert-logo" alt="Spark Technologies">
+      <div class="cert-title">CERTIFICATE</div>
+      <div class="cert-subtitle">OF ACHIEVEMENT</div>
+      <div class="cert-line">THIS CERTIFICATE IS PROUDLY PRESENTED TO</div>
+      <div class="cert-name" id="cert-name">Student Name</div>
+      <div class="cert-divider"></div>
+      <div class="cert-line" id="cert-date">AWARDED ON THIS DAY</div>
+      <div class="cert-line">FOR SUCCESSFULLY COMPLETING THE FOLLOWING COURSES</div>
+      <div class="cert-courses" id="cert-courses-text">COURSE A | COURSE B</div>
+      <div class="cert-line" style="margin-top:8px;">AND IN RECOGNITION OF OUTSTANDING</div>
+      <div class="cert-achievement">ACHIEVEMENT</div>
+      <div class="cert-divider"></div>
+      <div class="cert-signatures">
+        <div class="cert-sig">
+          <div class="cert-sig-line"></div>
+          <div class="cert-sig-name">EDWIN MUTUGI</div>
+          <div class="cert-sig-title">DIRECTOR<br>SPARK TECHNOLOGIES</div>
+        </div>
+        <div class="cert-seal">SPARK<br>TECHNOLOGIES</div>
+        <div class="cert-sig">
+          <div class="cert-sig-line"></div>
+          <div class="cert-sig-name">JOE MUTUGI</div>
+          <div class="cert-sig-title">CEO<br>SPARK TECHNOLOGIES</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

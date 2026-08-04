@@ -1,0 +1,347 @@
+﻿.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  flex: 1;
+  min-width: 220px;
+  max-width: 340px;
+}
+.search-box input { border: none; outline: none; font-family: inherit; font-size: 14px; width: 100%; color: var(--ink); }
+.search-box input::placeholder { color: var(--muted); }
+
+.level-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+.chip:hover { border-color: var(--green); color: var(--green); }
+.chip.active { background: var(--green); border-color: var(--green); color: var(--white); }
+
+/* ---------- Project grid + cards ---------- */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 22px;
+}
+
+.project-card {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.project-card:hover { transform: translateY(-5px); box-shadow: 0 16px 32px rgba(20,35,28,0.12); }
+
+.project-card__image-wrap {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--green-tint), #e6f3ea);
+}
+.project-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.project-card__image-placeholder {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--ink) 0%, #0F3D28 60%, var(--green-dark) 100%);
+  color: rgba(255,255,255,0.5);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.project-card__body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.project-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.project-card h3 { font-size: 16.5px; font-weight: 700; color: var(--ink); margin: 0; }
+
+.project-status-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  padding: 5px 11px;
+  border-radius: 20px;
+  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.project-status-badge.completed { background: var(--green-tint); color: var(--green-dark); }
+.project-status-badge.testing { background: #FFF4D8; color: #8A6D00; }
+.project-status-badge.in_progress { background: #E7EEFB; color: #2255A4; }
+.project-status-badge.planning { background: #F1F1F3; color: #57595E; }
+
+.project-card__client {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.project-card p.project-summary {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin: 0;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.project-tag {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.project-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.project-delete-btn {
+  color: #A3342F;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--muted);
+}
+
+.skeleton {
+  height: 240px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, var(--green-tint) 25%, #f4faf6 37%, var(--green-tint) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* ---------- Admin: post a project form ---------- */
+.admin-project-form-card { margin-bottom: 26px; }
+.project-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.project-add-form input,
+.project-add-form select,
+.project-add-form textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-family: inherit;
+  resize: vertical;
+}
+.project-file-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.project-add-form button { align-self: flex-start; }
+
+/* ---------- Project card: admin actions ---------- */
+.project-admin-actions {
+  display: flex;
+  gap: 6px;
+}
+.project-admin-actions .btn {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.project-edit-btn { color: var(--green-dark); }
+.project-delete-btn { color: #A3342F; }
+
+/* ---------- Edit modal: calm, spacious, unhurried ---------- */
+.project-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 25, 20, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+  animation: fadeInOverlay 0.15s ease;
+}
+@keyframes fadeInOverlay { from { opacity: 0; } to { opacity: 1; } }
+
+.project-modal {
+  background: var(--white);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+  animation: modalRise 0.18s ease;
+}
+@keyframes modalRise { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+.project-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  border-radius: 16px 16px 0 0;
+}
+.project-modal__head h3 { font-size: 17px; font-weight: 700; margin: 0; }
+.project-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.project-modal-close:hover { background: var(--green-tint); color: var(--green-dark); }
+
+.project-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px 24px;
+}
+.project-edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.project-edit-form input,
+.project-edit-form select,
+.project-edit-form textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.project-edit-form input:focus,
+.project-edit-form select:focus,
+.project-edit-form textarea:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(24,128,76,0.12);
+}
+
+.project-modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 480px) { .project-modal-row { grid-template-columns: 1fr; } }
+
+.project-modal-current-image {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.project-modal-current-image img {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+.project-remove-image-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
+
+

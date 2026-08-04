@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account - Spark Technologies</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <img src="assets/logo-sidebar.png" alt="Spark Technologies">
+      </div>
+
+      <nav>
+        <span class="nav-label">MAIN</span>
+        <a class="nav-link" href="index.html"><span class="dot"></span> Home</a>
+        <a class="nav-link" href="courses.html"><span class="dot"></span> Courses</a>
+        <a class="nav-link" href="projects.html"><span class="dot"></span> Projects</a>
+        <a class="nav-link" href="about.html"><span class="dot"></span> About Us</a>
+        <a class="nav-link" href="contact.html"><span class="dot"></span> Contact Us</a>
+
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="login.html"><span class="dot"></span> Login</a>
+        <a class="nav-link" href="register.html"><span class="dot"></span> Create Account</a>
+      </nav>
+
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div class="topbar__title">
+          <p class="eyebrow">ACCOUNT</p>
+          <h1>Create your account</h1>
+        </div>
+      </div>
+
+      <div class="auth-wrap">
+        <div class="card auth-card">
+          <h2>Sign up</h2>
+          <p class="auth-sub">Create an account to enroll in courses and track your progress.</p>
+
+          <div class="auth-message" id="auth-message"></div>
+
+          <form id="register-form" novalidate>
+            <label for="full_name">Full name</label>
+            <input type="text" id="full_name" name="full_name" placeholder="Jane Doe" required>
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required>
+
+            <label for="phone">Phone number</label>
+            <input type="tel" id="phone" name="phone" placeholder="07xx xxx xxx" required>
+
+            <label for="role">I am registering as a</label>
+            <select id="role" name="role" required>
+              <option value="student">Student</option>
+              <option value="trainer">Trainer</option>
+            </select>
+
+            <div id="trainer-code-wrap" style="display:none;">
+              <label for="trainer_code">Trainer invite code</label>
+              <input type="text" id="trainer_code" name="trainer_code" placeholder="Enter your trainer code">
+            </div>
+
+            <label for="password">Password</label>
+            <div class="password-field">
+              <input type="password" id="password" name="password" placeholder="At least 6 characters" required minlength="6">
+              <button type="button" class="password-toggle-btn" data-target="password" aria-label="Show password">
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="icon-eye-off" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 8 11 8a17.7 17.7 0 0 1-2.27 3.2M6.61 6.61A17.5 17.5 0 0 0 1 12s4 8 11 8a9.9 9.9 0 0 0 5.39-1.61"/><path d="M1 1l22 22"/></svg>
+              </button>
+            </div>
+
+            <label for="confirm_password">Confirm password</label>
+            <div class="password-field">
+              <input type="password" id="confirm_password" name="confirm_password" placeholder="Re-enter your password" required minlength="6">
+              <button type="button" class="password-toggle-btn" data-target="confirm_password" aria-label="Show password">
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="icon-eye-off" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 8 11 8a17.7 17.7 0 0 1-2.27 3.2M6.61 6.61A17.5 17.5 0 0 0 1 12s4 8 11 8a9.9 9.9 0 0 0 5.39-1.61"/><path d="M1 1l22 22"/></svg>
+              </button>
+            </div>
+
+            <button type="submit" class="btn btn-primary auth-submit" id="register-submit">Create account</button>
+          </form>
+
+          <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
+        </div>
+      </div>
+
+      <div class="site-footer-note">
+        <span>Spark Technologies - changing ideas into a smart solution.</span>
+        <span>Home . Courses . Projects . About Us . Contact Us</span>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>
+
+
+

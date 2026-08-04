@@ -59,9 +59,9 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "spark-dev-secret-change-me",
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, secure: true, sameSite: "none" }
+  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, secure: true, sameSite: "lax" }
 }));
-const frontendPath = path.join(__dirname, "..", "frontend");
+const frontendPath = path.join(__dirname, "frontend");
 if (fs.existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
 }
@@ -1582,6 +1582,8 @@ app.listen(PORT, () => {
   ensureContactTable();
   ensurePasswordResetTable();
 });
+
+
 
 
 

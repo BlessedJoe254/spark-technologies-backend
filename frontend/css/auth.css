@@ -1,0 +1,171 @@
+﻿.auth-wrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 10px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px 30px;
+}
+
+.auth-card h2 {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.auth-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 20px 0;
+}
+
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-card label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+  color: var(--ink);
+}
+
+.auth-card input {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.auth-card input:focus {
+  border-color: var(--green);
+}
+
+.auth-submit {
+  margin-top: 22px;
+  width: 100%;
+  justify-content: center;
+  font-size: 15px;
+  padding: 12px 18px;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--muted);
+  margin-top: 20px;
+}
+
+.auth-switch a {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.auth-message {
+  display: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  margin-bottom: 4px;
+}
+
+.auth-message.show {
+  display: block;
+}
+
+.auth-message.error {
+  background: #FDECEC;
+  color: #B42318;
+}
+
+.auth-message.success {
+  background: var(--green-tint);
+  color: var(--green-dark);
+}
+
+.auth-card select {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--ink);
+  outline: none;
+  background: var(--white);
+}
+
+.auth-card select:focus {
+  border-color: var(--green);
+}
+
+/* ---------- Password field with eye toggle ---------- */
+.password-field {
+  position: relative;
+}
+.password-field input {
+  width: 100%;
+  padding-right: 42px;
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0;
+}
+.password-toggle-btn:hover {
+  color: var(--green-dark);
+  background: var(--green-tint);
+}
+.password-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Forgot password link ---------- */
+.auth-forgot {
+  text-align: right;
+  margin: 8px 0 0;
+}
+.auth-forgot a {
+  font-size: 12.5px;
+  color: var(--green);
+  font-weight: 600;
+}
+.auth-forgot a:hover {
+  color: var(--green-dark);
+}
+
+/* ---------- Forgot/reset password pages ---------- */
+.auth-back-link {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.auth-back-link:hover {
+  color: var(--green-dark);
+}

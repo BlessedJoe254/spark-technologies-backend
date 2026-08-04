@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Courses - Spark Technologies</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/courses.css">
+</head>
+<body>
+
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <img src="assets/logo-sidebar.png" alt="Spark Technologies">
+      </div>
+
+      <nav>
+        <span class="nav-label">MAIN</span>
+        <a class="nav-link" href="index.html"><span class="dot"></span> Home</a>
+        <a class="nav-link" href="courses.html"><span class="dot"></span> Courses</a>
+        <a class="nav-link" href="projects.html"><span class="dot"></span> Projects</a>
+        <a class="nav-link" href="about.html"><span class="dot"></span> About Us</a>
+        <a class="nav-link" href="contact.html"><span class="dot"></span> Contact Us</a>
+
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="login.html"><span class="dot"></span> Login</a>
+        <a class="nav-link" href="register.html"><span class="dot"></span> Create Account</a>
+      </nav>
+
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div class="topbar__title">
+          <p class="eyebrow">COURSES</p>
+          <h1>Learn something new</h1>
+        </div>
+        <div class="topbar__actions">
+          <a href="register.html" class="btn btn-primary">Enroll now</a>
+        </div>
+      </div>
+
+      <div class="page-header">
+        <p class="lead">Practical, project-based courses in web development, backend engineering, databases and automation - taught by the Spark Technologies team.</p>
+      </div>
+
+      <div class="filter-bar">
+        <div class="search-box">
+          <span>&#128269;</span>
+          <input type="text" id="course-search" placeholder="Search courses...">
+        </div>
+        <div class="level-filters">
+          <button type="button" class="chip active" data-level="All">All</button>
+          <button type="button" class="chip" data-level="Beginner">Beginner</button>
+          <button type="button" class="chip" data-level="Intermediate">Intermediate</button>
+          <button type="button" class="chip" data-level="Advanced">Advanced</button>
+        </div>
+      </div>
+
+      <section class="course-grid" id="course-grid">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </section>
+
+      <div class="site-footer-note">
+        <span>Spark Technologies - changing ideas into a smart solution.</span>
+        <span>Home . Courses . Projects . About Us . Contact Us</span>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/courses.js"></script>
+</body>
+</html>
+
+
+

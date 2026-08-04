@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us - Spark Technologies</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/shared.css">
+  <link rel="stylesheet" href="css/contact.css">
+</head>
+<body>
+
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <img src="assets/logo-sidebar.png" alt="Spark Technologies">
+      </div>
+
+      <nav>
+        <span class="nav-label">MAIN</span>
+        <a class="nav-link" href="index.html"><span class="dot"></span> Home</a>
+        <a class="nav-link" href="courses.html"><span class="dot"></span> Courses</a>
+        <a class="nav-link" href="projects.html"><span class="dot"></span> Projects</a>
+        <a class="nav-link" href="about.html"><span class="dot"></span> About Us</a>
+        <a class="nav-link active" href="contact.html"><span class="dot"></span> Contact Us</a>
+
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="login.html"><span class="dot"></span> Login</a>
+        <a class="nav-link" href="register.html"><span class="dot"></span> Create Account</a>
+      </nav>
+
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div class="topbar__title">
+          <p class="eyebrow">CONTACT US</p>
+          <h1>Get in touch</h1>
+        </div>
+        <div class="topbar__actions" id="topbar-actions">
+          <a href="login.html" class="btn btn-ghost">Log In</a>
+          <a href="register.html" class="btn btn-primary">Create Account</a>
+        </div>
+      </div>
+
+      <section class="about-hero-panel reveal">
+        <div class="about-hero-panel__pattern" aria-hidden="true">
+          <svg viewBox="0 0 700 200" preserveAspectRatio="none">
+            <path class="trace" d="M0 40 H160 L180 20 L200 60 L220 40 H420 L440 20 L460 60 L480 40 H700"/>
+            <path class="trace" d="M0 140 H120 L140 160 L160 120 L180 140 H500 L520 160 L540 120 L560 140 H700"/>
+            <path class="trace" d="M60 0 V70 L90 90 V200"/>
+            <path class="trace" d="M620 0 V60 L590 85 V200"/>
+            <circle class="node" cx="200" cy="60" r="3"/>
+            <circle class="node" cx="440" cy="20" r="3"/>
+            <circle class="node" cx="160" cy="120" r="3"/>
+            <circle class="node" cx="540" cy="120" r="3"/>
+            <circle class="node" cx="90" cy="90" r="3"/>
+            <path class="pulse" d="M0 40 H160 L180 20 L200 60 L220 40 H420 L440 20 L460 60 L480 40 H700"/>
+          </svg>
+        </div>
+        <div class="about-hero-panel__content">
+          <p class="about-hero-eyebrow">LET'S TALK</p>
+          <h1>Have a project, or want to learn with us?</h1>
+          <p class="about-hero-sub">We are based in Meru, Kenya, and work with clients and students across the country. Send us a message below and we will get back to you as soon as we can.</p>
+        </div>
+      </section>
+
+      <section class="spec-strip reveal" style="animation-delay:0.05s;">
+        <div class="spec-item">
+          <span class="spec-value">Meru</span>
+          <span class="spec-label">Based in Kenya</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-value">1-2 days</span>
+          <span class="spec-label">Typical response time</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-value">Remote + On-site</span>
+          <span class="spec-label">How we work</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-value">100%</span>
+          <span class="spec-label">Messages read by the team</span>
+        </div>
+      </section>
+
+      <section class="contact-layout">
+
+        <section class="card panel contact-form-panel reveal" style="animation-delay:0.1s;">
+          <div class="section-title"><h2>Send a message</h2></div>
+          <form class="contact-form" id="contact-form">
+            <label>Full name
+              <input type="text" class="contact-name-input" placeholder="Your name" required>
+            </label>
+            <label>Email
+              <input type="email" class="contact-email-input" placeholder="you@example.com" required>
+            </label>
+            <label>Subject
+              <input type="text" class="contact-subject-input" placeholder="What is this about?">
+            </label>
+            <label>Message
+              <textarea class="contact-message-input" rows="6" placeholder="Tell us more..." required></textarea>
+            </label>
+            <button type="submit" class="btn btn-primary">Send message</button>
+            <div class="contact-form-status" id="contact-form-status"></div>
+          </form>
+        </section>
+
+        <aside class="contact-info-col reveal" style="animation-delay:0.15s;">
+
+          <div class="info-card">
+            <div class="info-card__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="info-card__body">
+              <span class="info-card__label">LOCATION</span>
+              <h3>Meru, Kenya</h3>
+              <p>Working with clients and students in person and remotely across the country.</p>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+            </div>
+            <div class="info-card__body">
+              <span class="info-card__label">EMAIL</span>
+              <h3>sparktech511@gmail.com</h3>
+              <p>The fastest way to reach the team directly for anything urgent.</p>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+            <div class="info-card__body">
+              <span class="info-card__label">RESPONSE TIME</span>
+              <h3>1-2 business days</h3>
+              <p>We read every message that comes through this form.</p>
+            </div>
+          </div>
+
+        </aside>
+
+      </section>
+
+      <section class="card panel admin-messages-panel reveal" id="admin-messages-panel" style="display:none; animation-delay:0.2s;">
+        <div class="section-title">
+          <h2>Inbox</h2>
+          <span class="stat-trend" id="messages-count">0 messages</span>
+        </div>
+        <div class="admin-messages-list" id="admin-messages-list">
+          <div class="empty-state">Loading messages...</div>
+        </div>
+      </section>
+
+      <div class="site-footer-note">
+        <span>Spark Technologies - changing ideas into a smart solution.</span>
+        <span>Home . Courses . Projects . About Us . Contact Us</span>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/contact.js"></script>
+</body>
+</html>
+
