@@ -95,7 +95,7 @@ function renderProjects() {
 
 function projectCardHtml(p) {
   const imageHtml = p.image_filename
-    ? "<div class=\"project-card__image-wrap\"><img class=\"project-card__image\" src=\"/project-images/" + encodeURIComponent(p.image_filename) + "\" alt=\"" + escapeHtml(p.title) + "\"></div>"
+    ? "<div class=\"project-card__image-wrap\"><img class=\"project-card__image\" src=\"" + escapeHtml(p.image_filename) + "\" alt=\"" + escapeHtml(p.title) + "\"></div>"
     : "<div class=\"project-card__image-placeholder\">Spark Technologies</div>";
 
   const tagsHtml = p.tags
@@ -162,7 +162,7 @@ function openEditModal(projectId) {
         "</div>" +
         "<label>Tags, comma separated<input type=\"text\" class=\"project-tags-input\" value=\"" + escapeHtml(p.tags || "") + "\"></label>" +
         "<label>Summary<textarea class=\"project-summary-input\" rows=\"5\">" + escapeHtml(p.summary || "") + "</textarea></label>" +
-        (p.image_filename ? "<div class=\"project-modal-current-image\"><img src=\"/project-images/" + encodeURIComponent(p.image_filename) + "\" alt=\"\"><label class=\"project-remove-image-label\"><input type=\"checkbox\" class=\"project-remove-image-checkbox\"> Remove this image</label></div>" : "") +
+        (p.image_filename ? "<div class=\"project-modal-current-image\"><img src=\"" + escapeHtml(p.image_filename) + "\" alt=\"\"><label class=\"project-remove-image-label\"><input type=\"checkbox\" class=\"project-remove-image-checkbox\"> Remove this image</label></div>" : "") +
         "<label>" + (p.image_filename ? "Replace image (optional)" : "Add an image (optional)") + "<input type=\"file\" class=\"project-image-input\" accept=\"image/*\"></label>" +
         "<div class=\"project-modal-actions\">" +
           "<button type=\"button\" class=\"btn btn-ghost\" id=\"project-edit-cancel\">Cancel</button>" +
