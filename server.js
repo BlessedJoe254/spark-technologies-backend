@@ -42,13 +42,24 @@ const projectUpload = multer({ storage: projectStorage, limits: { fileSize: 8 * 
 
 const teamImagesDir = path.join(__dirname, "team-images");
 if (!fs.existsSync(teamImagesDir)) fs.mkdirSync(teamImagesDir);
-const teamStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, teamImagesDir),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  }
+const cloudinary = require("cloudinary").v2;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+function uploadBufferToCloudinary(buffer, folder) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream({ folder }, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+    stream.end(buffer);
+  });
+}
+
+const teamStorage = multer.memoryStorage();
 const teamUpload = multer({ storage: teamStorage, limits: { fileSize: 8 * 1024 * 1024 } });
 
 app.set("trust proxy", 1);
@@ -1307,20 +1318,22 @@ app.post("/api/admin/team/create", requireLogin, requireRole("admin"), teamUploa
   try {
     const { full_name, role_title } = req.body;
     if (!full_name) {
-      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: "Name is required." });
     }
-    const imageFilename = req.file ? req.file.filename : null;
+    let imageUrl = null;
+    if (req.file) {
+      const result = await uploadBufferToCloudinary(req.file.buffer, "team-images");
+      imageUrl = result.secure_url;
+    }
 
     await pool.query(
       "INSERT INTO team_members (full_name, role_title, image_filename) VALUES (?, ?, ?)",
-      [full_name, role_title || null, imageFilename]
+      [full_name, role_title || null, imageUrl]
     );
 
     logActivity(req.session.user.id, req.session.user.full_name, "team_member_added", req.session.user.full_name + " added " + full_name + " to the team page.");
     res.json({ success: true });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
     console.error("Add team member error:", err.message);
     res.status(500).json({ error: "Could not add this team member right now." });
   }
@@ -1333,31 +1346,27 @@ app.post("/api/admin/team/:id/edit", requireLogin, requireRole("admin"), teamUpl
 
     const [[existing]] = await pool.query("SELECT image_filename FROM team_members WHERE id = ?", [memberId]);
     if (!existing) {
-      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(404).json({ error: "Team member not found." });
     }
     if (!full_name) {
-      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: "Name is required." });
     }
 
-    let imageFilename = existing.image_filename;
+    let imageUrl = existing.image_filename;
     if (req.file) {
-      if (existing.image_filename) fs.unlink(path.join(teamImagesDir, existing.image_filename), () => {});
-      imageFilename = req.file.filename;
+      const result = await uploadBufferToCloudinary(req.file.buffer, "team-images");
+      imageUrl = result.secure_url;
     } else if (remove_image === "true") {
-      if (existing.image_filename) fs.unlink(path.join(teamImagesDir, existing.image_filename), () => {});
-      imageFilename = null;
+      imageUrl = null;
     }
 
     await pool.query(
       "UPDATE team_members SET full_name = ?, role_title = ?, image_filename = ? WHERE id = ?",
-      [full_name, role_title || null, imageFilename, memberId]
+      [full_name, role_title || null, imageUrl, memberId]
     );
 
     res.json({ success: true });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
     console.error("Edit team member error:", err.message);
     res.status(500).json({ error: "Could not update this team member right now." });
   }
@@ -1369,9 +1378,6 @@ app.delete("/api/admin/team/:id", requireLogin, requireRole("admin"), async (req
     const [[member]] = await pool.query("SELECT image_filename FROM team_members WHERE id = ?", [memberId]);
     if (!member) return res.status(404).json({ error: "Team member not found." });
 
-    if (member.image_filename) {
-      fs.unlink(path.join(teamImagesDir, member.image_filename), () => {});
-    }
     await pool.query("DELETE FROM team_members WHERE id = ?", [memberId]);
     res.json({ success: true });
   } catch (err) {
