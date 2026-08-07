@@ -74,7 +74,7 @@ function renderTeam() {
 
 function teamCardHtml(m) {
   const imageHtml = m.image_filename
-    ? "<img class=\"team-card__image\" src=\"/team-images/" + encodeURIComponent(m.image_filename) + "\" alt=\"" + escapeHtml(m.full_name) + "\">"
+    ? "<img class=\"team-card__image\" src=\"" + escapeHtml(m.image_filename) + "\" alt=\"" + escapeHtml(m.full_name) + "\">"
     : "<div class=\"team-card__image-placeholder\">Spark Technologies</div>";
 
   const roleHtml = m.role_title ? escapeHtml(m.role_title).replace(/\n/g, "<br>") : "";
@@ -117,7 +117,7 @@ function openEditTeamModal(memberId) {
       "<form class=\"team-add-form\" id=\"team-edit-form\">" +
         "<label>Full name<input type=\"text\" class=\"team-name-input\" value=\"" + escapeHtml(m.full_name) + "\" required></label>" +
         "<label>Role<textarea class=\"team-role-input\" rows=\"2\">" + escapeHtml(m.role_title || "") + "</textarea></label>" +
-        (m.image_filename ? "<div class=\"team-modal-current-image\"><img src=\"/team-images/" + encodeURIComponent(m.image_filename) + "\" alt=\"\"><label class=\"project-remove-image-label\"><input type=\"checkbox\" class=\"team-remove-image-checkbox\"> Remove this photo</label></div>" : "") +
+        (m.image_filename ? "<div class=\"team-modal-current-image\"><img src=\"" + escapeHtml(m.image_filename) + "\" alt=\"\"><label class=\"project-remove-image-label\"><input type=\"checkbox\" class=\"team-remove-image-checkbox\"> Remove this photo</label></div>" : "") +
         "<label class=\"team-file-label\">" + (m.image_filename ? "Replace photo (optional)" : "Add a photo (optional)") + "<input type=\"file\" class=\"team-image-input\" accept=\"image/*\"></label>" +
         "<div class=\"team-modal-actions\">" +
           "<button type=\"button\" class=\"btn btn-ghost\" id=\"team-edit-cancel\">Cancel</button>" +
