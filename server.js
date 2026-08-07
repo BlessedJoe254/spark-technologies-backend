@@ -29,15 +29,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
-const projectImagesDir = path.join(__dirname, "project-images");
-if (!fs.existsSync(projectImagesDir)) fs.mkdirSync(projectImagesDir);
-const projectStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, projectImagesDir),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  }
-});
+const projectStorage = multer.memoryStorage();
 const projectUpload = multer({ storage: projectStorage, limits: { fileSize: 8 * 1024 * 1024 } });
 
 const teamImagesDir = path.join(__dirname, "team-images");
@@ -76,7 +68,6 @@ const frontendPath = path.join(__dirname, "frontend");
 if (fs.existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
 }
-app.use("/project-images", express.static(projectImagesDir));
 app.use("/team-images", express.static(teamImagesDir));
 
 function requireLogin(req, res, next) {
@@ -1226,11 +1217,14 @@ app.post("/api/admin/projects/create", requireLogin, requireRole("admin"), proje
   try {
     const { title, client_name, summary, tags, status, completed_on } = req.body;
     if (!title) {
-      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: "Project title is required." });
     }
     const validStatus = ["planning", "in_progress", "testing", "completed"].includes(status) ? status : "planning";
-    const imageFilename = req.file ? req.file.filename : null;
+    let imageFilename = null;
+    if (req.file) {
+      const result = await uploadBufferToCloudinary(req.file.buffer, "project-images");
+      imageFilename = result.secure_url;
+    }
     const completedOnValue = completed_on ? completed_on : null;
 
     await pool.query(
@@ -1241,7 +1235,6 @@ app.post("/api/admin/projects/create", requireLogin, requireRole("admin"), proje
     logActivity(req.session.user.id, req.session.user.full_name, "project_posted", req.session.user.full_name + " posted a new project: \"" + title + "\".");
     res.json({ success: true });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
     console.error("Create project error:", err.message);
     res.status(500).json({ error: "Could not save the project right now." });
   }
@@ -1254,11 +1247,9 @@ app.post("/api/admin/projects/:id/edit", requireLogin, requireRole("admin"), pro
 
     const [[existing]] = await pool.query("SELECT image_filename FROM projects WHERE id = ?", [projectId]);
     if (!existing) {
-      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(404).json({ error: "Project not found." });
     }
     if (!title) {
-      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: "Project title is required." });
     }
 
@@ -1267,10 +1258,9 @@ app.post("/api/admin/projects/:id/edit", requireLogin, requireRole("admin"), pro
 
     let imageFilename = existing.image_filename;
     if (req.file) {
-      if (existing.image_filename) fs.unlink(path.join(projectImagesDir, existing.image_filename), () => {});
-      imageFilename = req.file.filename;
+      const result = await uploadBufferToCloudinary(req.file.buffer, "project-images");
+      imageFilename = result.secure_url;
     } else if (remove_image === "true") {
-      if (existing.image_filename) fs.unlink(path.join(projectImagesDir, existing.image_filename), () => {});
       imageFilename = null;
     }
 
@@ -1281,7 +1271,6 @@ app.post("/api/admin/projects/:id/edit", requireLogin, requireRole("admin"), pro
 
     res.json({ success: true });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
     console.error("Edit project error:", err.message);
     res.status(500).json({ error: "Could not update the project right now." });
   }
@@ -1293,9 +1282,6 @@ app.delete("/api/admin/projects/:id", requireLogin, requireRole("admin"), async 
     const [[project]] = await pool.query("SELECT image_filename FROM projects WHERE id = ?", [projectId]);
     if (!project) return res.status(404).json({ error: "Project not found." });
 
-    if (project.image_filename) {
-      fs.unlink(path.join(projectImagesDir, project.image_filename), () => {});
-    }
     await pool.query("DELETE FROM projects WHERE id = ?", [projectId]);
     res.json({ success: true });
   } catch (err) {
@@ -1509,7 +1495,7 @@ app.post("/api/forgot-password", async (req, res) => {
 
     const [[user]] = await pool.query("SELECT id, full_name FROM users WHERE email = ?", [email]);
 
-    // Always respond success, whether or not the account exists — avoids revealing which emails are registered.
+    // Always respond success, whether or not the account exists ï¿½ avoids revealing which emails are registered.
     if (!user) {
       return res.json({ success: true });
     }
