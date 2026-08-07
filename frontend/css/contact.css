@@ -230,3 +230,5 @@
 .message-reply-status.success { color: var(--green-dark); }
 .message-reply-status.error { color: #A3342F; }
 
+
+.info-card { text-decoration: none; color: inherit; cursor: pointer; }
