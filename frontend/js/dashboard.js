@@ -362,6 +362,8 @@ async function loadStudentCourses() {
     if (courses.length === 0) { container.innerHTML = "<div class=\"empty-state\">You have not enrolled in any courses yet. <a href=\"courses.html\">Browse courses</a>.</div>"; return; }
     container.innerHTML = courses.map(studentCourseBlockHtml).join("");
     container.querySelectorAll(".payment-form").forEach(form => form.addEventListener("submit", handlePaymentSubmit));
+    container.querySelectorAll(".cat-upload-form").forEach(form => form.addEventListener("submit", handleCatUpload));
+    loadStudentCatStatus();
   } catch (err) { container.innerHTML = "<div class=\"empty-state\">Could not load your courses right now.</div>"; }
 }
 
@@ -374,6 +376,7 @@ function studentCourseBlockHtml(c) {
         "<div><div class=\"section-subhead\">Class links</div>" + classLinksHtml(c.class_links) + "</div>" +
         "<div><div class=\"section-subhead\">Attendance</div>" + attendanceBarHtml(c.attendance.attended, c.attendance.total) + attendanceGraphHtml(c.attendance.sessions) + "</div>" +
         "<div><div class=\"section-subhead\">Assessments</div>" + scoresHtml(c.scores) + "</div>" +
+        "<div><div class=\"section-subhead\">CAT Submissions</div>" + catUploadHtml(c) + "</div>" +
         "<div><div class=\"section-subhead\">Notes</div>" + notesTableHtml(c.notes) + "</div>" +
       "</div>";
   } else if (c.payment_code) {
@@ -465,6 +468,7 @@ async function loadTrainerStudents() {
     if (groups.length === 0) { container.innerHTML = "<div class=\"empty-state\">You do not have any assigned courses yet.</div>"; populateTrainerRecipientSelect([]); return; }
     container.innerHTML = groups.map(trainerGroupHtml).join("");
     wireTrainerGroupEvents(container);
+    loadTrainerCatFiles(groups);
     populateTrainerRecipientSelect(groups);
   } catch (err) { container.innerHTML = "<div class=\"empty-state\">Could not load your students right now.</div>"; }
 }
@@ -511,7 +515,7 @@ function trainerGroupHtml(g) {
 
       "<div class=\"section-subhead\" style=\"margin-top:14px;\">Students</div>" +
       (g.students.length === 0 ? "<div class=\"empty-state\">No students enrolled yet.</div>" :
-        "<table class=\"simple-table\"><thead><tr><th>Name</th><th>Phone</th><th>Payment</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th><th></th></tr></thead><tbody>" +
+        "<table class=\"simple-table\"><thead><tr><th>Name</th><th>Phone</th><th>Payment</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th><th>Files</th><th></th></tr></thead><tbody>" +
         g.students.map(s => (
           "<tr data-student-id=\"" + s.id + "\">" +
             "<td>" + escapeHtml(s.full_name) + "</td>" +
@@ -521,6 +525,7 @@ function trainerGroupHtml(g) {
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"cat1\" value=\"" + (s.scores.cat1 ? s.scores.cat1.score : "") + "\" style=\"width:55px;\"></td>" +
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"cat2\" value=\"" + (s.scores.cat2 ? s.scores.cat2.score : "") + "\" style=\"width:55px;\"></td>" +
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"final\" value=\"" + (s.scores.final ? s.scores.final.score : "") + "\" style=\"width:55px;\"></td>" +
+            "<td class=\"cat-files-cell\" data-student-id=\"" + s.id + "\">—</td>" +
             "<td><button class=\"btn btn-ghost save-scores-btn\" style=\"padding:5px 10px;font-size:12px;\">Save</button></td>" +
           "</tr>"
         )).join("") +
