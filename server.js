@@ -1555,14 +1555,7 @@ app.post("/api/reset-password", async (req, res) => {
   }
 });
 
-app.get("*", (req, res) => {
-  const indexPath = path.join(__dirname, "..", "frontend", "index.html");
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(200).json({ message: "Spark Technologies API is running." });
-  }
-});
+
 
 // ---------- CAT submissions (student upload / trainer grade / admin view) ----------
 const catStorage = multer.memoryStorage();
@@ -1680,31 +1673,11 @@ app.listen(PORT, () => {
   ensurePasswordResetTable();
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+app.get("*", (req, res) => {
+  const indexPath = path.join(__dirname, "..", "frontend", "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).json({ message: "Spark Technologies API is running." });
+  }
+});
