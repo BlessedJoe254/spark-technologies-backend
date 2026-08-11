@@ -1002,3 +1002,11 @@
   border: 3px solid #8A5A22; color: #0F2350; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
   display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.3;
 }
+
+/* ---------- CAT submissions ---------- */
+.cat-upload-block { margin-top: 6px; }
+.cat-type-row { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); margin-bottom: 8px; }
+.cat-status a { color: var(--green-dark); font-weight: 600; }
+.cat-files-cell a { font-size: 11.5px; font-weight: 700; text-decoration: none; color: var(--green-dark); }
+.cat-files-cell a:hover { text-decoration: underline; }
+

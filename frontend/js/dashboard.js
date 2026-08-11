@@ -827,6 +827,7 @@ async function loadAdminOverview() {
   const container = document.getElementById("admin-trainer-groups");
   const countEl = document.getElementById("admin-trainer-count");
   if (!container) return;
+  loadAdminCatSubmissions();
   try {
     const res = await fetch(API_BASE + "/api/admin/overview", { credentials: "include" });
     if (!res.ok) throw new Error("Request failed");
@@ -1112,3 +1113,106 @@ function setupCertTab() {
   if (genBtn) genBtn.addEventListener("click", generateCertificate);
   loadCertStudents();
 }
+
+/* ---------- CAT submissions ---------- */
+function catUploadHtml(c) {
+  if (!c.unlocked) return "";
+  const types = [["cat1", "CAT 1"], ["cat2", "CAT 2"], ["final", "Final Exam"]];
+  return (
+    "<div class=\"cat-upload-block\" data-course-id=\"" + c.id + "\">" +
+      types.map(function(t) {
+        return (
+          "<div class=\"cat-type-row\" style=\"display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;\">" +
+            "<span style=\"min-width:90px;font-size:13px;font-weight:600;\">" + t[1] + "</span>" +
+            "<span class=\"cat-status\" data-course-id=\"" + c.id + "\" data-type=\"" + t[0] + "\" style=\"font-size:12px;color:var(--muted);\">Loading...</span>" +
+            "<form class=\"cat-upload-form\" data-course-id=\"" + c.id + "\" data-type=\"" + t[0] + "\" style=\"display:flex;gap:6px;align-items:center;\">" +
+              "<input type=\"file\" class=\"cat-file-input\" accept=\"application/pdf\" required style=\"font-size:12px;max-width:170px;\">" +
+              "<button type=\"submit\" class=\"btn btn-ghost\" style=\"padding:4px 10px;font-size:12px;\">Upload</button>" +
+            "</form>" +
+          "</div>"
+        );
+      }).join("") +
+    "</div>"
+  );
+}
+
+async function handleCatUpload(e) {
+  e.preventDefault();
+  const form = e.target, courseId = form.dataset.courseId, type = form.dataset.type;
+  const fileInput = form.querySelector(".cat-file-input"), btn = form.querySelector("button");
+  if (!fileInput.files[0]) return;
+  const formData = new FormData();
+  formData.append("course_id", courseId);
+  formData.append("assessment_type", type);
+  formData.append("pdf", fileInput.files[0]);
+  btn.disabled = true; btn.textContent = "Uploading...";
+  try {
+    const res = await fetch(API_BASE + "/api/student/cats/upload", { method: "POST", credentials: "include", body: formData });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || "Could not upload the file."); btn.disabled = false; btn.textContent = "Upload"; return; }
+    btn.textContent = "Uploaded";
+    loadStudentCatStatus();
+    setTimeout(function() { btn.disabled = false; btn.textContent = "Upload"; }, 1500);
+  } catch (err) { alert("Could not reach the server."); btn.disabled = false; btn.textContent = "Upload"; }
+}
+
+async function loadStudentCatStatus() {
+  try {
+    const res = await fetch(API_BASE + "/api/student/cats", { credentials: "include" });
+    if (!res.ok) return;
+    const data = await res.json();
+    const subMap = {};
+    (data.submissions || []).forEach(function(s) { subMap[s.course_id + "-" + s.assessment_type] = s; });
+    const scoreMap = {};
+    (data.scores || []).forEach(function(s) { scoreMap[s.course_id + "-" + s.assessment_type] = s; });
+    document.querySelectorAll(".cat-status").forEach(function(el) {
+      const key = el.dataset.courseId + "-" + el.dataset.type;
+      const sub = subMap[key], score = scoreMap[key];
+      if (!sub) { el.textContent = "Not submitted"; return; }
+      el.innerHTML = "<a href=\"" + sub.pdf_url + "\" target=\"_blank\" rel=\"noopener\">View PDF</a> . " + (score ? score.score + "/" + score.max_score : "Awaiting grading");
+    });
+  } catch (err) {}
+}
+
+async function loadTrainerCatFiles(groups) {
+  for (const g of groups) {
+    try {
+      const res = await fetch(API_BASE + "/api/trainer/cats?course_id=" + g.course_id, { credentials: "include" });
+      if (!res.ok) continue;
+      const rows = await res.json();
+      const byStudent = {};
+      rows.forEach(function(r) { if (!byStudent[r.student_id]) byStudent[r.student_id] = []; byStudent[r.student_id].push(r); });
+      const groupEl = document.querySelector(".trainer-group[data-course-id=\"" + g.course_id + "\"]");
+      if (!groupEl) continue;
+      Object.keys(byStudent).forEach(function(studentId) {
+        const cell = groupEl.querySelector(".cat-files-cell[data-student-id=\"" + studentId + "\"]");
+        if (!cell) return;
+        cell.innerHTML = byStudent[studentId].map(function(r) {
+          return "<a href=\"" + r.pdf_url + "\" target=\"_blank\" rel=\"noopener\" title=\"" + r.assessment_type + "\" style=\"margin-right:6px;\">" + r.assessment_type.toUpperCase() + "</a>";
+        }).join("");
+      });
+    } catch (err) {}
+  }
+}
+
+async function loadAdminCatSubmissions() {
+  const container = document.getElementById("admin-cat-submissions");
+  if (!container) return;
+  try {
+    const res = await fetch(API_BASE + "/api/admin/cats", { credentials: "include" });
+    if (!res.ok) throw new Error("Request failed");
+    const rows = await res.json();
+    if (rows.length === 0) { container.innerHTML = "<div class=\"empty-state\">No CAT submissions yet.</div>"; return; }
+    container.innerHTML =
+      "<table class=\"simple-table\"><thead><tr><th>Course</th><th>Student</th><th>Trainer</th><th>Type</th><th>File</th><th>Score</th></tr></thead><tbody>" +
+      rows.map(function(r) {
+        return (
+          "<tr><td>" + escapeHtml(r.course_title) + "</td><td>" + escapeHtml(r.student_name) + "</td><td>" + escapeHtml(r.trainer_name || "-") + "</td><td>" + r.assessment_type.toUpperCase() + "</td>" +
+          "<td><a href=\"" + r.pdf_url + "\" target=\"_blank\" rel=\"noopener\">View PDF</a></td>" +
+          "<td>" + (r.score !== null && r.score !== undefined ? r.score + "/" + r.max_score : "Not graded") + "</td></tr>"
+        );
+      }).join("") +
+      "</tbody></table>";
+  } catch (err) { container.innerHTML = "<div class=\"empty-state\">Could not load CAT submissions right now.</div>"; }
+}
+
