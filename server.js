@@ -1564,6 +1564,114 @@ app.get("*", (req, res) => {
   }
 });
 
+// ---------- CAT submissions (student upload / trainer grade / admin view) ----------
+const catStorage = multer.memoryStorage();
+const catUpload = multer({
+  storage: catStorage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") cb(null, true);
+    else cb(new Error("Only PDF files are allowed."));
+  }
+});
+
+app.post("/api/student/cats/upload", requireLogin, requireRole("student"), catUpload.single("pdf"), async (req, res) => {
+  try {
+    const { course_id, assessment_type } = req.body;
+    const studentId = req.session.user.id;
+
+    if (!course_id || !["cat1", "cat2", "final"].includes(assessment_type)) {
+      return res.status(400).json({ error: "A valid course and assessment type are required." });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "Please attach a PDF file." });
+    }
+
+    const [[enrolled]] = await pool.query(
+      "SELECT id FROM enrollments WHERE user_id = ? AND course_id = ?",
+      [studentId, course_id]
+    );
+    if (!enrolled) {
+      return res.status(403).json({ error: "You are not enrolled in this course." });
+    }
+
+    const result = await uploadBufferToCloudinary(req.file.buffer, "cat-submissions");
+
+    await pool.query(
+      "INSERT INTO cat_submissions (course_id, student_id, assessment_type, pdf_url, original_filename) VALUES (?, ?, ?, ?, ?) " +
+      "ON DUPLICATE KEY UPDATE pdf_url = VALUES(pdf_url), original_filename = VALUES(original_filename), submitted_at = CURRENT_TIMESTAMP",
+      [course_id, studentId, assessment_type, result.secure_url, req.file.originalname]
+    );
+
+    res.json({ success: true, url: result.secure_url });
+  } catch (err) {
+    console.error("CAT upload error:", err.message);
+    res.status(500).json({ error: "Could not upload the file right now." });
+  }
+});
+
+app.get("/api/student/cats", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    const studentId = req.session.user.id;
+    const [subRows] = await pool.query(
+      "SELECT course_id, assessment_type, pdf_url, original_filename, submitted_at FROM cat_submissions WHERE student_id = ?",
+      [studentId]
+    );
+    const [scoreRows] = await pool.query(
+      "SELECT course_id, assessment_type, score, max_score FROM assessment_scores WHERE student_id = ?",
+      [studentId]
+    );
+    res.json({ submissions: subRows, scores: scoreRows });
+  } catch (err) {
+    console.error("Student CAT fetch error:", err.message);
+    res.status(500).json({ error: "Could not load your CAT submissions right now." });
+  }
+});
+
+app.get("/api/trainer/cats", requireLogin, requireRole("trainer"), async (req, res) => {
+  try {
+    const course_id = Number(req.query.course_id);
+    if (!course_id) return res.status(400).json({ error: "course_id is required." });
+    if (!(await assertOwnsCourse(req.session.user.id, course_id))) {
+      return res.status(403).json({ error: "This is not your course." });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT cs.student_id, u.full_name AS student_name, cs.assessment_type, cs.pdf_url, cs.original_filename, cs.submitted_at, " +
+      "ascore.score, ascore.max_score " +
+      "FROM cat_submissions cs " +
+      "JOIN users u ON u.id = cs.student_id " +
+      "LEFT JOIN assessment_scores ascore ON ascore.course_id = cs.course_id AND ascore.student_id = cs.student_id AND ascore.assessment_type = cs.assessment_type " +
+      "WHERE cs.course_id = ? ORDER BY u.full_name, cs.assessment_type",
+      [course_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Trainer CAT fetch error:", err.message);
+    res.status(500).json({ error: "Could not load CAT submissions right now." });
+  }
+});
+
+app.get("/api/admin/cats", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT cs.course_id, c.title AS course_title, cs.student_id, u.full_name AS student_name, " +
+      "t.full_name AS trainer_name, cs.assessment_type, cs.pdf_url, cs.original_filename, cs.submitted_at, " +
+      "ascore.score, ascore.max_score " +
+      "FROM cat_submissions cs " +
+      "JOIN users u ON u.id = cs.student_id " +
+      "JOIN courses c ON c.id = cs.course_id " +
+      "LEFT JOIN users t ON t.id = c.trainer_id " +
+      "LEFT JOIN assessment_scores ascore ON ascore.course_id = cs.course_id AND ascore.student_id = cs.student_id AND ascore.assessment_type = cs.assessment_type " +
+      "ORDER BY c.title, u.full_name, cs.assessment_type"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Admin CAT fetch error:", err.message);
+    res.status(500).json({ error: "Could not load CAT submissions right now." });
+  }
+});
+
 app.listen(PORT, () => {
   console.log("Spark Technologies server running at http://localhost:" + PORT);
   ensureAdminAccount();

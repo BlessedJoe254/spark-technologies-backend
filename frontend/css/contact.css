@@ -232,3 +232,25 @@
 
 
 .info-card { text-decoration: none; color: inherit; cursor: pointer; }
+
+.contact-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink, #1a1a1a);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-family: 'Space Grotesk', sans-serif;
+  box-shadow: 0 12px 26px rgba(0,0,0,0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 999;
+}
+.contact-toast--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
