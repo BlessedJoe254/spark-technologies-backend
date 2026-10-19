@@ -1331,3 +1331,35 @@ async function loadAdminCatSubmissions() {
     loadIntakes();
   });
 })();
+
+/* ---------- Admin: Intakes sidebar ---------- */
+(function () {
+  function adminVisible() {
+    var p = document.getElementById("admin-panel");
+    return !!p && window.getComputedStyle(p).display !== "none";
+  }
+  function openIntakes() {
+    var tab = document.querySelector('.admin-tab[data-tab="intakes"]');
+    var panel = document.getElementById("admin-panel");
+    if (tab) tab.click();
+    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  var opened = false;
+  function sync() {
+    var show = adminVisible();
+    var link = document.getElementById("nav-intakes");
+    var label = document.getElementById("nav-admin-label");
+    if (link) link.style.display = show ? "" : "none";
+    if (label) label.style.display = show ? "" : "none";
+    if (show && !opened && window.location.hash === "#intakes") { opened = true; openIntakes(); }
+  }
+  document.addEventListener("click", function (ev) {
+    var link = ev.target.closest("#nav-intakes");
+    if (!link) return;
+    ev.preventDefault();
+    history.replaceState(null, "", "#intakes");
+    openIntakes();
+  });
+  setInterval(sync, 700);
+  sync();
+})();
