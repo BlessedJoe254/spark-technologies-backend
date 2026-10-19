@@ -1435,10 +1435,10 @@ function adminMonthPickerHtml() {
     var label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
     opts += '<option value="' + key + '"' + (sel === key ? " selected" : "") + '>' + label + '</option>';
   }
-  return '<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;">' +
+  return '<div style="display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
     '<label for="admin-earnings-month" style="font-size:13px;">Month</label>' +
     '<select id="admin-earnings-month">' + opts + '</select>' +
-    '<span id="admin-earnings-hint" style="font-size:12px;color:#1e8449;"></span>' +
+    '<select id="admin-earnings-range" style="font-size:13px;"><option value="month">Report: selected month</option><option value="3">Last 3 months</option><option value="6">Last 6 months</option><option value="9">Last 9 months</option><option value="12">Last 12 months</option></select><span id="admin-earnings-hint" style="font-size:12px;color:#1e8449;"></span>' +
     '<button type="button" class="btn btn-ghost" id="admin-earnings-pdf" style="padding:6px 12px;font-size:13px;">Download PDF</button>' +
     '<button type="button" class="btn btn-ghost" id="admin-earnings-print" style="padding:6px 12px;font-size:13px;">Print</button></div>';
 }
@@ -1462,7 +1462,7 @@ document.addEventListener("change", function (ev) {
     return new Date(Number(p[0]), Number(p[1]) - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   }
   function buildReport(d, key) {
-    var label = monthLabel(key);
+    var label = d.report_label || monthLabel(key);
     var logo = new URL("assets/logo-sidebar.png", window.location.href).href;
     var trainers = d.trainers || [];
     var paidTotal = trainers.reduce(function (s, t) { return s + Number(t.paid_students || 0); }, 0);
@@ -1547,7 +1547,7 @@ document.addEventListener("change", function (ev) {
       setTimeout(go, 150);
     }
   }
-  function runReport(isPdf) {
+  window.adminReportHelpers = { buildReport: buildReport, printHtml: printHtml }; function runReport(isPdf) {
     var key = window.adminEarningsMonth || currentMonthKey();
     if (isPdf) {
       var hint = document.getElementById("admin-earnings-hint");
@@ -1572,6 +1572,75 @@ document.addEventListener("change", function (ev) {
   document.addEventListener("click", function (ev) {
     var btn = ev.target.closest("#admin-earnings-print, #admin-earnings-pdf");
     if (!btn) return;
-    runReport(btn.id === "admin-earnings-pdf");
+    if (window.adminReportRange && window.adminReportRange(btn.id === "admin-earnings-pdf")) return; runReport(btn.id === "admin-earnings-pdf");
   });
 })();
+
+/* ---------- Admin earnings: multi-month report ---------- */
+window.adminReportRange = function (isPdf) {
+  var sel = document.getElementById("admin-earnings-range");
+  var n = sel ? parseInt(sel.value, 10) : 0;
+  if (!n) return false;
+  var helpers = window.adminReportHelpers;
+  if (!helpers) return false;
+  var hint = document.getElementById("admin-earnings-hint");
+  if (isPdf && hint) {
+    hint.textContent = "In the print window, set Destination to Save as PDF.";
+    setTimeout(function () {
+      var h = document.getElementById("admin-earnings-hint");
+      if (h) h.textContent = "";
+    }, 9000);
+  }
+  var now = new Date();
+  var keys = [];
+  for (var i = 0; i < n; i++) {
+    var d0 = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(d0.getFullYear() + "-" + String(d0.getMonth() + 1).padStart(2, "0"));
+  }
+  function short(key) {
+    var p = key.split("-");
+    return new Date(Number(p[0]), Number(p[1]) - 1, 1).toLocaleString("en-US", { month: "short", year: "numeric" });
+  }
+  Promise.all(keys.map(function (k) {
+    return fetch(API_BASE + "/api/admin/earnings?month=" + encodeURIComponent(k), { credentials: "include" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Request failed");
+        return res.json();
+      });
+  })).then(function (list) {
+    var sums = ["paid_students", "total_collected", "owed_to_trainer", "company_share", "tax_share"];
+    var map = {};
+    var order = [];
+    list.forEach(function (d) {
+      (d.trainers || []).forEach(function (t) {
+        var id = Object.keys(t).filter(function (k) { return sums.indexOf(k) < 0; }).sort()
+          .map(function (k) { return k + "=" + t[k]; }).join("|");
+        if (!map[id]) {
+          map[id] = Object.assign({}, t);
+          sums.forEach(function (k) { map[id][k] = 0; });
+          order.push(id);
+        }
+        sums.forEach(function (k) { map[id][k] += Number(t[k] || 0); });
+      });
+    });
+    var trainers = order.map(function (id) { return map[id]; });
+    trainers.sort(function (a, b) { return String(a.trainer_name).localeCompare(String(b.trainer_name)); });
+    function total(field) {
+      return list.reduce(function (s, d) { return s + Number(d[field] || 0); }, 0);
+    }
+    var first = list[0] || {};
+    var agg = {
+      trainers: trainers,
+      total_collected: total("total_collected"),
+      total_owed_to_trainers: total("total_owed_to_trainers"),
+      total_company_share: total("total_company_share"),
+      total_tax: total("total_tax"),
+      trainer_share_pct: first.trainer_share_pct,
+      company_share_pct: first.company_share_pct,
+      tax_share_pct: first.tax_share_pct,
+      report_label: "Last " + n + " months (" + short(keys[n - 1]) + " - " + short(keys[0]) + ")"
+    };
+    helpers.printHtml(helpers.buildReport(agg, "all"), "Spark-Finance-Last-" + n + "-months");
+  }).catch(function () { alert("Could not load the report data right now."); });
+  return true;
+};
