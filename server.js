@@ -749,6 +749,9 @@ app.get("/api/admin/overview", requireLogin, requireRole("admin"), async (req, r
     }
 
     const result = Object.values(trainers).map(t => ({ id: t.id, full_name: t.full_name, phone: t.phone, courses: Object.values(t.courses) }));
+    // busiest trainers first (most students across all their courses)
+    const studentTotal = x => x.courses.reduce((sum, c) => sum + c.students.length, 0);
+    result.sort((a, b) => studentTotal(b) - studentTotal(a) || String(a.full_name).localeCompare(String(b.full_name)));
     res.json(result);
   } catch (err) {
     console.error("Admin overview error:", err.message);
