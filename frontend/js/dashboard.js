@@ -436,10 +436,10 @@ async function loadTrainerEarnings() {
   const container = document.getElementById("trainer-earnings");
   if (!container) return;
   try {
-    const res = await fetch(API_BASE + "/api/trainer/earnings", { credentials: "include" });
+    const res = await fetch(API_BASE + "/api/trainer/earnings?month=" + encodeURIComponent(window.trainerEarningsMonth || currentMonthKey()), { credentials: "include" });
     if (!res.ok) throw new Error("Request failed");
     const d = await res.json();
-    container.innerHTML =
+    container.innerHTML = trainerMonthPickerHtml() +
       "<div class=\"earnings-cards\">" +
         earningsCard("Paid students", d.total_paid_students, "") +
         earningsCard("Total collected", formatKes(d.total_collected), "") +
@@ -1397,3 +1397,29 @@ async function loadAdminCatSubmissions() {
   setInterval(sync, 700);
   sync();
 })();
+
+/* ---------- Trainer earnings: monthly view ---------- */
+function currentMonthKey() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+function trainerMonthPickerHtml() {
+  var sel = window.trainerEarningsMonth || currentMonthKey();
+  var now = new Date();
+  var opts = '<option value="all"' + (sel === "all" ? " selected" : "") + '>All time</option>';
+  for (var i = 0; i < 12; i++) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    var key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    var label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+    opts += '<option value="' + key + '"' + (sel === key ? " selected" : "") + '>' + label + '</option>';
+  }
+  return '<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;">' +
+    '<label for="trainer-earnings-month" style="font-size:13px;">Month</label>' +
+    '<select id="trainer-earnings-month">' + opts + '</select></div>';
+}
+document.addEventListener("change", function (ev) {
+  if (ev.target && ev.target.id === "trainer-earnings-month") {
+    window.trainerEarningsMonth = ev.target.value;
+    loadTrainerEarnings();
+  }
+});

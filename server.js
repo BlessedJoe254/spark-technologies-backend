@@ -741,7 +741,7 @@ app.post("/api/admin/mark-paid", requireLogin, requireRole("admin"), async (req,
   try {
     const { enrollment_id } = req.body;
     if (!enrollment_id) return res.status(400).json({ error: "Enrollment is required." });
-    await pool.query("UPDATE enrollments SET has_paid = TRUE WHERE id = ?", [enrollment_id]);
+    await pool.query("UPDATE enrollments SET has_paid = TRUE, paid_at = COALESCE(paid_at, NOW()) WHERE id = ?", [enrollment_id]);
     const [[paidInfo]] = await pool.query(
       "SELECT u.full_name AS student_name, c.title AS course_title FROM enrollments e " +
       "JOIN users u ON u.id = e.user_id JOIN courses c ON c.id = e.course_id WHERE e.id = ?",
@@ -798,15 +798,48 @@ function computeShares(totalCollected) {
   return { trainer_share, company_share, tax_share };
 }
 
+// ---------- Monthly earnings support ----------
+async function ensurePaidAtSchema() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'enrollments' AND COLUMN_NAME = 'paid_at'"
+    );
+    if (cols.length === 0) {
+      await pool.query("ALTER TABLE enrollments ADD COLUMN paid_at TIMESTAMP NULL DEFAULT NULL");
+      await pool.query("UPDATE enrollments SET paid_at = enrolled_at WHERE has_paid = TRUE AND paid_at IS NULL");
+    }
+  } catch (err) {
+    console.warn("paid_at schema setup failed:", err.message);
+  }
+}
+ensurePaidAtSchema();
+
+// month = "YYYY-MM", "all", or missing (current month, UTC)
+function monthRange(m) {
+  if (m === "all") return { all: true };
+  let y, mo;
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(m || "");
+  if (match) { y = Number(match[1]); mo = Number(match[2]); }
+  else { const now = new Date(); y = now.getUTCFullYear(); mo = now.getUTCMonth() + 1; }
+  const pad = n => String(n).padStart(2, "0");
+  const ny = mo === 12 ? y + 1 : y;
+  const nm = mo === 12 ? 1 : mo + 1;
+  return { all: false, start: y + "-" + pad(mo) + "-01 00:00:00", end: ny + "-" + pad(nm) + "-01 00:00:00" };
+}
+
 app.get("/api/trainer/earnings", requireLogin, requireRole("trainer"), async (req, res) => {
   try {
     const trainerId = req.session.user.id;
+    const range = monthRange(req.query.month);
+    const monthSql = range.all ? "" : "AND e.paid_at >= ? AND e.paid_at < ? ";
+    const params = range.all ? [trainerId] : [trainerId, range.start, range.end];
     const [rows] = await pool.query(
       "SELECT c.id AS course_id, c.title AS course_title, c.fee_kes, COUNT(e.id) AS paid_count " +
       "FROM courses c JOIN enrollments e ON e.course_id = c.id " +
-      "WHERE c.trainer_id = ? AND e.has_paid = TRUE AND c.fee_kes IS NOT NULL " +
+      "WHERE c.trainer_id = ? AND e.has_paid = TRUE AND c.fee_kes IS NOT NULL " + monthSql +
       "GROUP BY c.id, c.title, c.fee_kes",
-      [trainerId]
+      params
     );
 
     let totalCollected = 0, totalPaidStudents = 0;
