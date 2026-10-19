@@ -328,7 +328,7 @@ app.get("/api/my-courses", requireLogin, requireRole("student"), async (req, res
       });
 
       const [linkRows] = await pool.query(
-        "SELECT id, course_id, title, url FROM class_links WHERE course_id IN (?) ORDER BY created_at",
+        "SELECT id, course_id, title, url FROM class_links WHERE course_id IN (?) AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY created_at",
         [unlockedIds]
       );
       linkRows.forEach(l => {
@@ -431,7 +431,7 @@ app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (re
   try {
     const trainerId = req.session.user.id;
     const [rows] = await pool.query(
-      "SELECT c.id AS course_id, c.title AS course_title, u.id AS student_id, u.full_name, u.phone, e.has_paid, " +
+      "SELECT c.id AS course_id, c.title AS course_title, u.id AS student_id, u.full_name, u.phone, e.has_paid, e.completed, " +
       "e.intake_id, i.name AS intake_name, i.start_date AS intake_start " +
       "FROM courses c " +
       "LEFT JOIN enrollments e ON e.course_id = c.id " +
@@ -447,7 +447,7 @@ app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (re
         groups[r.course_id] = { course_id: r.course_id, course_title: r.course_title, students: [], notes: [], class_links: [], sessions_count: 0 };
       }
       if (r.student_id) {
-        groups[r.course_id].students.push({ id: r.student_id, full_name: r.full_name, phone: r.phone, has_paid: !!r.has_paid, intake_id: r.intake_id || null, intake_name: r.intake_name || null, intake_start: r.intake_start || null, attended: 0, scores: { cat1: null, cat2: null, final: null } });
+        groups[r.course_id].students.push({ id: r.student_id, full_name: r.full_name, phone: r.phone, has_paid: !!r.has_paid, completed: !!r.completed, intake_id: r.intake_id || null, intake_name: r.intake_name || null, intake_start: r.intake_start || null, attended: 0, scores: { cat1: null, cat2: null, final: null } });
       }
     });
 
@@ -460,7 +460,7 @@ app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (re
       noteRows.forEach(n => { if (groups[n.course_id]) groups[n.course_id].notes.push({ id: n.id, title: n.title, original_filename: n.original_filename }); });
 
       const [linkRows] = await pool.query(
-        "SELECT id, course_id, title, url FROM class_links WHERE course_id IN (?) ORDER BY created_at",
+        "SELECT id, course_id, title, url FROM class_links WHERE course_id IN (?) AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY created_at",
         [courseIds]
       );
       linkRows.forEach(l => { if (groups[l.course_id]) groups[l.course_id].class_links.push({ id: l.id, title: l.title, url: l.url }); });
@@ -522,6 +522,24 @@ app.post("/api/trainer/class-links", requireLogin, requireRole("trainer"), async
   } catch (err) {
     console.error("Add class link error:", err.message);
     res.status(500).json({ error: "Could not save the link right now." });
+  }
+});
+
+app.post("/api/trainer/complete-student", requireLogin, requireRole("trainer"), async (req, res) => {
+  try {
+    const { course_id, student_id, completed } = req.body;
+    if (!course_id || !student_id) return res.status(400).json({ error: "Course and student are required." });
+    if (!(await assertOwnsCourse(req.session.user.id, course_id))) return res.status(403).json({ error: "This is not your course." });
+
+    const [[{ cnt }]] = await pool.query("SELECT COUNT(*) AS cnt FROM class_sessions WHERE course_id = ?", [course_id]);
+    if (completed && cnt < 1) return res.status(400).json({ error: "Record at least one class before marking a student completed." });
+
+    const [result] = await pool.query("UPDATE enrollments SET completed = ? WHERE user_id = ? AND course_id = ?", [completed ? 1 : 0, student_id, course_id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: "This student is not enrolled in the course." });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Trainer complete student error:", err.message);
+    res.status(500).json({ error: "Could not update completion right now." });
   }
 });
 
@@ -686,7 +704,7 @@ app.get("/api/admin/overview", requireLogin, requireRole("admin"), async (req, r
 
     const courseIdList = Array.from(courseIds);
     if (courseIdList.length > 0) {
-      const [linkRows] = await pool.query("SELECT id, course_id, title, url FROM class_links WHERE course_id IN (?) ORDER BY created_at", [courseIdList]);
+      const [linkRows] = await pool.query("SELECT id, course_id, title, url FROM class_links WHERE course_id IN (?) AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY created_at", [courseIdList]);
       linkRows.forEach(l => {
         Object.values(trainers).forEach(t => { if (t.courses[l.course_id]) t.courses[l.course_id].class_links.push({ id: l.id, title: l.title, url: l.url }); });
       });

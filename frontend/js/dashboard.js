@@ -264,7 +264,7 @@ function scoresHtml(scores) {
 }
 
 function classLinksHtml(links) {
-  if (!links || links.length === 0) return "<div class=\"empty-state\">No class links posted yet.</div>";
+  if (!links || links.length === 0) return "<div class=\"empty-state\">No active class links. Links disappear 24 hours after they are posted.</div>";
   return (
     "<table class=\"simple-table\"><thead><tr><th>Title</th><th></th></tr></thead><tbody>" +
       links.map(l => (
@@ -515,7 +515,7 @@ function trainerGroupHtml(g) {
 
       "<div class=\"section-subhead\" style=\"margin-top:14px;\">Students</div>" +
       (g.students.length === 0 ? "<div class=\"empty-state\">No students enrolled yet.</div>" :
-        "<table class=\"simple-table\"><thead><tr><th>Name</th><th>Phone</th><th>Intake</th><th>Payment</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th><th>Files</th><th></th></tr></thead><tbody>" +
+        "<table class=\"simple-table\"><thead><tr><th>Name</th><th>Phone</th><th>Intake</th><th>Payment</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th><th>Files</th><th>Completion</th><th></th></tr></thead><tbody>" +
         g.students.map(s => (
           "<tr data-student-id=\"" + s.id + "\">" +
             "<td>" + escapeHtml(s.full_name) + "</td>" +
@@ -527,6 +527,7 @@ function trainerGroupHtml(g) {
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"cat2\" value=\"" + (s.scores.cat2 ? s.scores.cat2.score : "") + "\" style=\"width:55px;\"></td>" +
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"final\" value=\"" + (s.scores.final ? s.scores.final.score : "") + "\" style=\"width:55px;\"></td>" +
             "<td class=\"cat-files-cell\" data-student-id=\"" + s.id + "\">—</td>" +
+            "<td>" + completeCellHtml(g.course_id, s.id, s.completed) + "</td>" +
             "<td><button class=\"btn btn-ghost save-scores-btn\" style=\"padding:5px 10px;font-size:12px;\">Save</button></td>" +
           "</tr>"
         )).join("") +
@@ -1644,3 +1645,38 @@ window.adminReportRange = function (isPdf) {
   }).catch(function () { alert("Could not load the report data right now."); });
   return true;
 };
+
+/* ---------- Trainer: mark student completed ---------- */
+function completeCellHtml(courseId, studentId, completed) {
+  var attrs = ' data-course-id="' + courseId + '" data-student-id="' + studentId + '"';
+  if (completed) {
+    return '<span style="color:#1e8449;font-weight:bold;font-size:12px;">Completed</span> ' +
+      '<button type="button" class="btn btn-ghost complete-student-btn" data-completed="0"' + attrs + ' style="padding:3px 8px;font-size:11px;">Undo</button>';
+  }
+  return '<button type="button" class="btn btn-ghost complete-student-btn" data-completed="1"' + attrs + ' style="padding:5px 10px;font-size:12px;">Mark completed</button>';
+}
+document.addEventListener("click", function (ev) {
+  var btn = ev.target.closest(".complete-student-btn");
+  if (!btn) return;
+  var done = btn.dataset.completed === "1";
+  var msg = done
+    ? "Mark this student as completed? Only do this after you have taught all the lessons."
+    : "Remove the completed mark for this student?";
+  if (!confirm(msg)) return;
+  var courseId = Number(btn.dataset.courseId);
+  var studentId = Number(btn.dataset.studentId);
+  var cell = btn.closest("td");
+  btn.disabled = true;
+  fetch(API_BASE + "/api/trainer/complete-student", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ course_id: courseId, student_id: studentId, completed: done })
+  })
+    .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, d: d }; }); })
+    .then(function (r) {
+      if (!r.ok) { alert(r.d.error || "Could not update the student."); btn.disabled = false; return; }
+      if (cell) cell.innerHTML = completeCellHtml(courseId, studentId, done);
+    })
+    .catch(function () { alert("Could not reach the server."); btn.disabled = false; });
+});
