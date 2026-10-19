@@ -986,7 +986,7 @@ async function logActivity(actorId, actorName, actionType, description) {
 app.get("/api/activity/recent", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT action_type, description, created_at FROM activity_log ORDER BY created_at DESC LIMIT 10"
+      "SELECT action_type, description, created_at FROM activity_log WHERE action_type NOT IN ('user_deleted','user_deactivated','user_reactivated','message','contact_replied') ORDER BY created_at DESC LIMIT 10"
     );
     res.json(rows);
   } catch (err) {
@@ -1376,7 +1376,7 @@ app.post("/api/testimonials", async (req, res) => {
     );
     recent.push(now);
     testimonialHits.set(key, recent);
-    res.json({ success: true, id: r.insertId });
+    logActivity(null, name, "testimonial", name + " shared a review about Spark Technologies."); res.json({ success: true, id: r.insertId });
   } catch (err) {
     console.error("Testimonial save error:", err.message);
     res.status(500).json({ error: "Could not send your message right now." });
