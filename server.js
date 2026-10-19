@@ -62,7 +62,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "spark-dev-secret-change-me",
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, secure: true, sameSite: "lax" }
+  cookie: { maxAge: 1000 * 60 * 60 * 24 * 7, secure: "auto", sameSite: "lax" }
 }));
 const frontendPath = path.join(__dirname, "frontend");
 if (fs.existsSync(frontendPath)) {
@@ -431,11 +431,13 @@ app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (re
   try {
     const trainerId = req.session.user.id;
     const [rows] = await pool.query(
-      "SELECT c.id AS course_id, c.title AS course_title, u.id AS student_id, u.full_name, u.phone, e.has_paid " +
+      "SELECT c.id AS course_id, c.title AS course_title, u.id AS student_id, u.full_name, u.phone, e.has_paid, " +
+      "e.intake_id, i.name AS intake_name, i.start_date AS intake_start " +
       "FROM courses c " +
       "LEFT JOIN enrollments e ON e.course_id = c.id " +
+      "LEFT JOIN intakes i ON i.id = e.intake_id " +
       "LEFT JOIN users u ON u.id = e.user_id " +
-      "WHERE c.trainer_id = ? ORDER BY c.title, u.full_name",
+      "WHERE c.trainer_id = ? ORDER BY c.title, i.start_date DESC, u.full_name",
       [trainerId]
     );
 
@@ -445,7 +447,7 @@ app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (re
         groups[r.course_id] = { course_id: r.course_id, course_title: r.course_title, students: [], notes: [], class_links: [], sessions_count: 0 };
       }
       if (r.student_id) {
-        groups[r.course_id].students.push({ id: r.student_id, full_name: r.full_name, phone: r.phone, has_paid: !!r.has_paid, attended: 0, scores: { cat1: null, cat2: null, final: null } });
+        groups[r.course_id].students.push({ id: r.student_id, full_name: r.full_name, phone: r.phone, has_paid: !!r.has_paid, intake_id: r.intake_id || null, intake_name: r.intake_name || null, intake_start: r.intake_start || null, attended: 0, scores: { cat1: null, cat2: null, final: null } });
       }
     });
 
@@ -1662,6 +1664,104 @@ app.get("/api/admin/cats", requireLogin, requireRole("admin"), async (req, res) 
   } catch (err) {
     console.error("Admin CAT fetch error:", err.message);
     res.status(500).json({ error: "Could not load CAT submissions right now." });
+  }
+});
+
+// ---------- Intakes ----------
+async function ensureIntakeSchema() {
+  try {
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS intakes (" +
+      "id INT AUTO_INCREMENT PRIMARY KEY, " +
+      "name VARCHAR(100) NOT NULL, " +
+      "start_date DATE NOT NULL, " +
+      "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    );
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'enrollments' AND COLUMN_NAME = 'intake_id'"
+    );
+    if (cols.length === 0) {
+      await pool.query("ALTER TABLE enrollments ADD COLUMN intake_id INT NULL");
+    }
+  } catch (err) {
+    console.warn("Intake schema setup failed:", err.message);
+  }
+}
+ensureIntakeSchema();
+
+app.get("/api/admin/intakes", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT i.id, i.name, i.start_date, COUNT(e.id) AS student_count " +
+      "FROM intakes i LEFT JOIN enrollments e ON e.intake_id = i.id " +
+      "GROUP BY i.id, i.name, i.start_date ORDER BY i.start_date DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("List intakes error:", err.message);
+    res.json([]);
+  }
+});
+
+app.post("/api/admin/intakes/create", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const name = (req.body.name || "").trim();
+    const startDate = req.body.start_date;
+    if (!name || !startDate) return res.status(400).json({ error: "Name and start date are required." });
+    await pool.query("INSERT INTO intakes (name, start_date) VALUES (?, ?)", [name, startDate]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Create intake error:", err.message);
+    res.status(500).json({ error: "Could not create the intake right now." });
+  }
+});
+
+app.delete("/api/admin/intakes/:id", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [[used]] = await pool.query("SELECT COUNT(*) AS n FROM enrollments WHERE intake_id = ?", [req.params.id]);
+    if (used.n > 0) {
+      return res.status(409).json({ error: "This intake still has students. Move them to another intake first." });
+    }
+    await pool.query("DELETE FROM intakes WHERE id = ?", [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete intake error:", err.message);
+    res.status(500).json({ error: "Could not delete the intake right now." });
+  }
+});
+
+// All enrollments with their intake, for the admin assignment screen
+app.get("/api/admin/intakes/enrollments", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT e.id AS enrollment_id, u.full_name, u.phone, c.id AS course_id, c.title AS course_title, " +
+      "e.intake_id, i.name AS intake_name, e.enrolled_at " +
+      "FROM enrollments e JOIN users u ON u.id = e.user_id JOIN courses c ON c.id = e.course_id " +
+      "LEFT JOIN intakes i ON i.id = e.intake_id ORDER BY c.title, e.enrolled_at DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Intake enrollments error:", err.message);
+    res.json([]);
+  }
+});
+
+// Assign (or clear) an intake for one or many enrollments
+app.post("/api/admin/intakes/assign", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body.enrollment_ids) ? req.body.enrollment_ids.map(Number).filter(Boolean) : [];
+    const intakeId = req.body.intake_id ? Number(req.body.intake_id) : null;
+    if (ids.length === 0) return res.status(400).json({ error: "Select at least one student." });
+    if (intakeId) {
+      const [[exists]] = await pool.query("SELECT id FROM intakes WHERE id = ?", [intakeId]);
+      if (!exists) return res.status(404).json({ error: "Intake not found." });
+    }
+    await pool.query("UPDATE enrollments SET intake_id = ? WHERE id IN (?)", [intakeId, ids]);
+    res.json({ success: true, updated: ids.length });
+  } catch (err) {
+    console.error("Assign intake error:", err.message);
+    res.status(500).json({ error: "Could not assign the intake right now." });
   }
 });
 
