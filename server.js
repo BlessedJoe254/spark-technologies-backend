@@ -173,7 +173,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
 app.get("/api/courses", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, title, description, level, duration_weeks, fee_kes FROM courses " +
+      "SELECT id, title, description, level, duration_weeks, duration_value, duration_unit, fee_kes FROM courses " +
       "ORDER BY FIELD(level, 'Beginner', 'Intermediate', 'Advanced'), title"
     );
     res.json(rows);
@@ -307,7 +307,7 @@ app.get("/api/my-courses", requireLogin, requireRole("student"), async (req, res
   try {
     const studentId = req.session.user.id;
     const [rows] = await pool.query(
-      "SELECT c.id, c.title, c.level, c.duration_weeks, c.fee_kes, e.has_paid, e.payment_code " +
+      "SELECT c.id, c.title, c.level, c.duration_weeks, c.duration_value, c.duration_unit, c.fee_kes, e.has_paid, e.payment_code " +
       "FROM enrollments e JOIN courses c ON c.id = e.course_id " +
       "WHERE e.user_id = ? ORDER BY e.enrolled_at DESC",
       [studentId]
@@ -382,7 +382,7 @@ app.get("/api/my-courses", requireLogin, requireRole("student"), async (req, res
         id: r.id,
         title: r.title,
         level: r.level,
-        duration_weeks: r.duration_weeks,
+        duration_weeks: r.duration_weeks, duration_value: r.duration_value, duration_unit: r.duration_unit,
         fee_kes: r.fee_kes,
         has_paid: !!r.has_paid,
         payment_code: r.payment_code,
@@ -796,7 +796,7 @@ app.post("/api/admin/mark-paid", requireLogin, requireRole("admin"), async (req,
 app.get("/api/admin/courses", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, title, level, fee_kes, trainer_id FROM courses " +
+      "SELECT id, title, description, level, duration_weeks, duration_value, duration_unit, fee_kes, trainer_id FROM courses " +
       "ORDER BY FIELD(level, 'Beginner', 'Intermediate', 'Advanced'), title"
     );
     res.json(rows);
@@ -1260,9 +1260,64 @@ app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (re
   }
 });
 // ---------- Admin: add, edit fee, delete courses ----------
+// ---------- Course duration (weeks or months) and editing ----------
+async function ensureCourseDurationSchema() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'courses' AND COLUMN_NAME = 'duration_unit'"
+    );
+    if (cols.length === 0) {
+      await pool.query("ALTER TABLE courses ADD COLUMN duration_unit VARCHAR(10) NOT NULL DEFAULT 'weeks', ADD COLUMN duration_value INT NULL");
+      await pool.query(
+        "UPDATE courses SET duration_unit = IF(duration_weeks % 4 = 0, 'months', 'weeks'), " +
+        "duration_value = IF(duration_weeks % 4 = 0, duration_weeks / 4, duration_weeks)"
+      );
+    }
+  } catch (err) {
+    console.warn("courses duration schema setup failed:", err.message);
+  }
+}
+ensureCourseDurationSchema();
+
+function parseDuration(value, unit) {
+  const n = Math.floor(Number(value));
+  if (!isFinite(n) || n < 1 || n > 520) return null;
+  const u = unit === "months" ? "months" : "weeks";
+  return { value: n, unit: u, weeks: u === "months" ? n * 4 : n };
+}
+
+app.post("/api/admin/courses/:id/edit", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const courseId = Number(req.params.id);
+    const { title, description, level, duration_value, duration_unit, fee_kes } = req.body;
+    const cleanTitle = String(title || "").trim();
+    if (!cleanTitle || !level) return res.status(400).json({ error: "Title and level are required." });
+    if (!["Beginner", "Intermediate", "Advanced"].includes(level)) return res.status(400).json({ error: "Invalid level." });
+    const dur = parseDuration(duration_value, duration_unit);
+    if (!dur) return res.status(400).json({ error: "Enter a valid duration (a whole number, 1 or more)." });
+    const feeValue = (fee_kes === "" || fee_kes === null || fee_kes === undefined) ? null : Number(fee_kes);
+    if (feeValue !== null && (isNaN(feeValue) || feeValue < 0)) return res.status(400).json({ error: "Enter a valid fee amount, or leave blank for a free course." });
+
+    const [[course]] = await pool.query("SELECT id FROM courses WHERE id = ?", [courseId]);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+    const [dupe] = await pool.query("SELECT id FROM courses WHERE title = ? AND id <> ?", [cleanTitle, courseId]);
+    if (dupe.length > 0) return res.status(409).json({ error: "Another course already has that title." });
+
+    await pool.query(
+      "UPDATE courses SET title = ?, description = ?, level = ?, duration_weeks = ?, duration_value = ?, duration_unit = ?, fee_kes = ? WHERE id = ?",
+      [cleanTitle, description || "", level, dur.weeks, dur.value, dur.unit, feeValue, courseId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Edit course error:", err.message);
+    res.status(500).json({ error: "Could not save the course right now." });
+  }
+});
+
 app.post("/api/admin/courses/create", requireLogin, requireRole("admin"), async (req, res) => {
   try {
-    const { title, description, level, duration_weeks, fee_kes } = req.body;
+    const { title, description, level, duration_weeks, duration_value, duration_unit, fee_kes } = req.body;
     if (!title || !level) return res.status(400).json({ error: "Title and level are required." });
     if (!["Beginner", "Intermediate", "Advanced"].includes(level)) return res.status(400).json({ error: "Invalid level." });
 
@@ -1270,11 +1325,13 @@ app.post("/api/admin/courses/create", requireLogin, requireRole("admin"), async 
     if (existing.length > 0) return res.status(409).json({ error: "A course with that title already exists." });
 
     const feeValue = (fee_kes === "" || fee_kes === null || fee_kes === undefined) ? null : Number(fee_kes);
-    const durationValue = duration_weeks ? Number(duration_weeks) : 4;
+    const durRaw = (duration_value !== undefined && duration_value !== "" && duration_value !== null) ? duration_value : duration_weeks;
+    const dur = parseDuration(durRaw ? durRaw : 4, duration_unit);
+    if (!dur) return res.status(400).json({ error: "Enter a valid duration (a whole number, 1 or more)." });
 
     await pool.query(
-      "INSERT INTO courses (title, description, level, duration_weeks, fee_kes, trainer_id) VALUES (?, ?, ?, ?, ?, NULL)",
-      [title, description || "", level, durationValue, feeValue]
+      "INSERT INTO courses (title, description, level, duration_weeks, duration_value, duration_unit, fee_kes, trainer_id) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)",
+      [title, description || "", level, dur.weeks, dur.value, dur.unit, feeValue]
     );
     res.json({ success: true });
   } catch (err) {

@@ -115,7 +115,7 @@ function courseCardHtml(c) {
       "</div>" +
       "<p>" + escapeHtml(c.description || "") + "</p>" +
       "<div class=\"course-card__meta\">" +
-        "<span class=\"duration\">" + Math.round(c.duration_weeks / 4) + " month" + (Math.round(c.duration_weeks / 4) === 1 ? "" : "s") + "</span>" +
+        "<span class=\"duration\">" + courseDurationText(c) + "</span>" +
         formatFee(c.fee_kes) +
         actionButtonHtml(c) +
       "</div>" +
@@ -157,4 +157,15 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+/* ---------- Course duration text (weeks or months) ---------- */
+function courseDurationText(c) {
+  var n = Number(c && c.duration_value), u = c && c.duration_unit;
+  if (n >= 1 && (u === "weeks" || u === "months")) {
+    return n + " " + (u === "months" ? "month" : "week") + (n === 1 ? "" : "s");
+  }
+  var m = Math.round(Number(c && c.duration_weeks) / 4);
+  if (isNaN(m)) return "";
+  return m + " month" + (m === 1 ? "" : "s");
 }

@@ -368,7 +368,7 @@ async function loadStudentCourses() {
 }
 
 function studentCourseBlockHtml(c) {
-  const durationLabel = Math.round(c.duration_weeks / 4) + " month" + (Math.round(c.duration_weeks / 4) === 1 ? "" : "s");
+  const durationLabel = courseDurationText(c);
   let bodyHtml;
   if (c.unlocked) {
     bodyHtml =
@@ -880,7 +880,7 @@ async function handleAddCourse(e) {
   if (!title || !level) return;
   btn.disabled = true; btn.textContent = "Adding...";
   try {
-    const res = await fetch(API_BASE + "/api/admin/courses/create", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title, level, fee_kes: fee, duration_weeks: duration, description }) });
+    const res = await fetch(API_BASE + "/api/admin/courses/create", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title, level, fee_kes: fee, duration_value: duration, duration_unit: ((form.querySelector(".course-duration-unit") || {}).value || "weeks"), description }) });
     const data = await res.json();
     if (!res.ok) { alert(data.error || "Could not add the course."); btn.disabled = false; btn.textContent = "Add course"; return; }
     form.reset();
@@ -907,6 +907,7 @@ async function loadAssignTable() {
         "</select></td>" +
         "<td style=\"display:flex;gap:6px;\">" +
           "<button class=\"btn btn-ghost assign-save\" data-course-id=\"" + c.id + "\" style=\"padding:6px 12px;font-size:12.5px;\">Save</button>" +
+          "<button class=\"btn btn-ghost edit-course-btn\" data-course-id=\"" + c.id + "\" style=\"padding:6px 12px;font-size:12.5px;\">Edit</button>" +
           "<button class=\"btn btn-ghost delete-course-btn\" data-course-id=\"" + c.id + "\" data-course-title=\"" + escapeHtml(c.title) + "\" style=\"padding:6px 12px;font-size:12.5px;color:#A3342F;\">Delete</button>" +
         "</td></tr>"
       )).join("") + "</tbody></table>";
@@ -2047,4 +2048,103 @@ document.addEventListener("click", function (ev) {
     var p = r.closest(".admin-tab-panel");
     if (p && p.style.display !== "none" && r.offsetParent !== null) load();
   }, 1000);
+})();
+
+/* ---------- Courses: duration text + edit form ---------- */
+function courseDurationText(c) {
+  var n = Number(c && c.duration_value), u = c && c.duration_unit;
+  if (n >= 1 && (u === "weeks" || u === "months")) {
+    return n + " " + (u === "months" ? "month" : "week") + (n === 1 ? "" : "s");
+  }
+  var m = Math.round(Number(c && c.duration_weeks) / 4);
+  if (isNaN(m)) return "";
+  return m + " month" + (m === 1 ? "" : "s");
+}
+(function () {
+  function refresh() {
+    if (typeof loadAssignTable === "function") loadAssignTable();
+    if (typeof loadAdminOverview === "function") loadAdminOverview();
+    if (typeof loadAdminEarnings === "function") loadAdminEarnings();
+  }
+  function lbl(text, inner) {
+    return '<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:#4b5d52;text-transform:uppercase;letter-spacing:.03em;">' + text + inner + '</label>';
+  }
+  function formHtml(c) {
+    var unit = c.duration_unit === "months" ? "months" : "weeks";
+    var val = Number(c.duration_value) >= 1 ? Number(c.duration_value) : (Number(c.duration_weeks) >= 1 ? Number(c.duration_weeks) : 4);
+    var fee = (c.fee_kes === null || c.fee_kes === undefined) ? "" : String(c.fee_kes);
+    var levels = ["Beginner", "Intermediate", "Advanced"].map(function (l) {
+      return '<option value="' + l + '"' + (c.level === l ? " selected" : "") + '>' + l + '</option>';
+    }).join("");
+    return '<td colspan="5"><div class="course-edit-box" data-course-id="' + c.id + '" data-orig-fee="' + escapeHtml(fee) + '" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:12px;border:1px solid #cfdcd3;border-radius:10px;background:rgba(30,132,73,.05);">' +
+      lbl("Title", '<input type="text" class="ce-title" value="' + escapeHtml(c.title) + '">') +
+      lbl("Level", '<select class="ce-level">' + levels + '</select>') +
+      lbl("Duration", '<div style="display:flex;gap:6px;"><input type="number" class="ce-duration" min="1" value="' + val + '" style="flex:1;min-width:70px;"><select class="ce-unit"><option value="weeks"' + (unit === "weeks" ? " selected" : "") + '>Weeks</option><option value="months"' + (unit === "months" ? " selected" : "") + '>Months</option></select></div>') +
+      lbl("Fee (KES, blank = free)", '<input type="number" class="ce-fee" min="0" value="' + escapeHtml(fee) + '">') +
+      '<label style="grid-column:1/-1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#4b5d52;text-transform:uppercase;letter-spacing:.03em;">Description<textarea class="ce-desc" rows="3">' + escapeHtml(c.description || "") + '</textarea></label>' +
+      '<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">' +
+        '<button type="button" class="btn btn-primary ce-save" style="padding:7px 14px;font-size:13px;">Save changes</button>' +
+        '<button type="button" class="btn btn-ghost ce-cancel" style="padding:7px 14px;font-size:13px;">Cancel</button>' +
+        '<span style="font-size:12px;color:#4b5d52;">The trainer and enrolled students are not affected. Changing the fee also changes how this course is counted in Finance.</span>' +
+      '</div></div></td>';
+  }
+  function openEdit(btn) {
+    var id = Number(btn.dataset.courseId);
+    var row = btn.closest("tr");
+    if (!row) return;
+    var next = row.nextElementSibling;
+    if (next && next.classList.contains("course-edit-row")) { next.remove(); return; }
+    btn.disabled = true;
+    fetch(API_BASE + "/api/admin/courses", { credentials: "include" })
+      .then(function (res) { return res.json(); })
+      .then(function (list) {
+        btn.disabled = false;
+        var c = (Array.isArray(list) ? list : []).filter(function (x) { return Number(x.id) === id; })[0];
+        if (!c) { alert("Could not load this course right now."); return; }
+        var tr = document.createElement("tr");
+        tr.className = "course-edit-row";
+        tr.innerHTML = formHtml(c);
+        row.parentNode.insertBefore(tr, row.nextSibling);
+      })
+      .catch(function () { btn.disabled = false; alert("Could not reach the server."); });
+  }
+  function saveEdit(btn) {
+    var box = btn.closest(".course-edit-box");
+    if (!box) return;
+    var id = Number(box.dataset.courseId);
+    var title = box.querySelector(".ce-title").value.trim();
+    var level = box.querySelector(".ce-level").value;
+    var dur = parseInt(box.querySelector(".ce-duration").value, 10);
+    var unit = box.querySelector(".ce-unit").value;
+    var fee = box.querySelector(".ce-fee").value.trim();
+    var desc = box.querySelector(".ce-desc").value;
+    if (!title) { alert("Enter a course title."); return; }
+    if (!(dur >= 1)) { alert("Enter a duration of 1 or more."); return; }
+    if (fee !== "" && !(Number(fee) >= 0)) { alert("Enter a valid fee, or leave it blank for a free course."); return; }
+    if (fee !== (box.dataset.origFee || "") && !confirm("Finance totals use each course's current fee, so changing it also changes this course's past months in Finance. Save the new fee?")) return;
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    fetch(API_BASE + "/api/admin/courses/" + id + "/edit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title: title, level: level, description: desc, duration_value: dur, duration_unit: unit, fee_kes: fee })
+    })
+      .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, d: d }; }); })
+      .then(function (r) {
+        if (!r.ok) { alert(r.d.error || "Could not save the course."); btn.disabled = false; btn.textContent = "Save changes"; return; }
+        refresh();
+      })
+      .catch(function () { alert("Could not reach the server."); btn.disabled = false; btn.textContent = "Save changes"; });
+  }
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var edit = t.closest(".edit-course-btn");
+    if (edit) { openEdit(edit); return; }
+    var cancel = t.closest(".ce-cancel");
+    if (cancel) { var r = cancel.closest("tr"); if (r) r.remove(); return; }
+    var save = t.closest(".ce-save");
+    if (save) saveEdit(save);
+  });
 })();

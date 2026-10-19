@@ -245,7 +245,7 @@
               <option value="Advanced">Advanced</option>
             </select>
             <input type="number" class="course-fee-input" placeholder="Fee (KES, blank = free)" min="0">
-            <input type="number" class="course-duration-input" placeholder="Weeks" min="1" value="4">
+            <div style="display:flex;gap:6px;"><input type="number" class="course-duration-input" placeholder="Duration" min="1" value="4" style="flex:1;min-width:70px;"><select class="course-duration-unit"><option value="weeks">Weeks</option><option value="months">Months</option></select></div>
             <textarea class="course-description-input" placeholder="Short description" rows="2"></textarea>
             <button type="submit" class="btn btn-primary">Add course</button>
           </form>
