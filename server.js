@@ -525,6 +525,21 @@ app.post("/api/trainer/class-links", requireLogin, requireRole("trainer"), async
   }
 });
 
+// ---------- Completion support: make sure enrollments.completed exists ----------
+async function ensureCompletedSchema() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'enrollments' AND COLUMN_NAME = 'completed'"
+    );
+    if (cols.length === 0) {
+      await pool.query("ALTER TABLE enrollments ADD COLUMN completed TINYINT(1) NOT NULL DEFAULT 0");
+    }
+  } catch (err) {
+    console.warn("completed schema setup failed:", err.message);
+  }
+}
+ensureCompletedSchema();
 app.post("/api/trainer/complete-student", requireLogin, requireRole("trainer"), async (req, res) => {
   try {
     const { course_id, student_id, completed } = req.body;
