@@ -1,4 +1,4 @@
-/* tm-v2 */
+/* tm-v2 tm-v3 */
 (function () {
   var API = (typeof API_BASE !== "undefined") ? API_BASE : "";
   var host = document.getElementById("testimonials-section");
@@ -85,7 +85,7 @@
     '<div class="tm-overlay" id="tm-overlay"><div class="tm-modal" role="dialog" aria-label="Share your thoughts">' +
       '<h3>Share your thoughts</h3>' +
       '<label>Your name<input type="text" id="tm-name" maxlength="80" placeholder="e.g. Amina W."></label>' +
-      '<label>I am a<select id="tm-role"><option>Student</option><option>Parent</option><option>Trainer</option><option selected>Visitor</option></select></label>' +
+      '<label>I am a<select id="tm-role"><option>Student</option><option>Parent</option><option>Trainer</option><option selected>Visitor</option><option>Other</option></select></label>' + '<label id="tm-role-other-wrap" style="display:none;">Tell us who you are<input type="text" id="tm-role-other" maxlength="20" placeholder="e.g. Alumni, Employer"></label>' +
       '<label>Course (optional)<select id="tm-course"><option value="">General / not listed</option></select></label>' +
       '<label>Your rating<div class="tm-stars" id="tm-stars"><button type="button" data-v="1">&#9733;</button><button type="button" data-v="2">&#9733;</button><button type="button" data-v="3">&#9733;</button><button type="button" data-v="4">&#9733;</button><button type="button" data-v="5">&#9733;</button></div></label>' +
       '<label>Your message<textarea id="tm-msg" rows="4" maxlength="400" placeholder="What do you like about Spark Technologies?"></textarea></label>' +
@@ -101,7 +101,7 @@
 
   function card(t) {
     var col = pick(t.name);
-    var rc = ROLE[t.role] || ROLE.Visitor;
+    var rc = ROLE[t.role] || ["#CCFBF1", "#115E59"];
     var init = esc((t.name || "?").trim().charAt(0).toUpperCase());
     var r = Number(t.rating) || 0;
     return '<div class="tm-card" data-id="' + Number(t.id) + '"><span class="tm-quote">&ldquo;</span>' +
@@ -161,7 +161,7 @@
   function openForm() { document.getElementById("tm-err").textContent = ""; overlay.classList.add("open"); }
   function closeForm() { overlay.classList.remove("open"); }
 
-  document.getElementById("tm-open").addEventListener("click", openForm);
+  document.getElementById("tm-open").addEventListener("click", openForm); document.getElementById("tm-role").addEventListener("change", function () { document.getElementById("tm-role-other-wrap").style.display = this.value === "Other" ? "" : "none"; });
   document.getElementById("tm-cancel").addEventListener("click", closeForm);
   overlay.addEventListener("click", function (e) { if (e.target === overlay) closeForm(); });
   document.getElementById("tm-stars").addEventListener("click", function (e) {
@@ -175,7 +175,7 @@
     var btn = this, err = document.getElementById("tm-err");
     var name = document.getElementById("tm-name").value.trim();
     var msg = document.getElementById("tm-msg").value.trim();
-    var role = document.getElementById("tm-role").value;
+    var role = document.getElementById("tm-role").value; if (role === "Other") { role = document.getElementById("tm-role-other").value.trim().replace(/\s+/g, " "); if (role.length < 2) { err.textContent = "Please tell us who you are."; return; } }
     var course = courseSel.value;
     if (name.length < 2) { err.textContent = "Please enter your name."; return; }
     if (!rating) { err.textContent = "Please choose a star rating."; return; }
@@ -196,7 +196,7 @@
         render();
         document.getElementById("tm-msg").value = "";
         document.getElementById("tm-count").textContent = "0 / 400";
-        courseSel.value = "";
+        courseSel.value = ""; document.getElementById("tm-role").value = "Visitor"; document.getElementById("tm-role-other").value = ""; document.getElementById("tm-role-other-wrap").style.display = "none";
         setStars(0);
         closeForm();
       })

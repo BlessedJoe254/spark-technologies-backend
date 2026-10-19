@@ -1360,7 +1360,7 @@ app.post("/api/testimonials", async (req, res) => {
     if (recent.length >= 3) return res.status(429).json({ error: "You have sent a few messages already. Please try again in an hour." });
 
     const name = String(body.name || "").trim().slice(0, 80);
-    const role = ["Student", "Parent", "Trainer", "Visitor"].includes(body.role) ? body.role : "Visitor";
+    const roleRaw = String(body.role || "").trim().replace(/\s+/g, " ").slice(0, 20); const role = roleRaw.length >= 2 ? roleRaw : "Visitor";
     const course = String(body.course || "").trim().slice(0, 120);
     const rating = Math.floor(Number(body.rating));
     const message = String(body.message || "").trim();
