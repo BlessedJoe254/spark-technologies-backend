@@ -1,4 +1,4 @@
-/* tm-v2 tm-v3 */
+/* tm-v2 tm-v3 tm-v4 */
 (function () {
   var API = (typeof API_BASE !== "undefined") ? API_BASE : "";
   var host = document.getElementById("testimonials-section");
@@ -46,14 +46,14 @@
     ".tm-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px;}" +
     ".tm-head h2{margin:0;font-size:24px;color:var(--ink,#14231C);}" +
     ".tm-head p{margin:3px 0 0;color:var(--muted,#5B6B63);font-size:14px;}" +
-    ".tm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}" +
+    ".tm-wrap{position:relative;}" + ".tm-grid{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:8px 2px 16px;scrollbar-width:none;}" + ".tm-grid::-webkit-scrollbar{display:none;}" + ".tm-grid .tm-card{flex:0 0 min(360px,86%);scroll-snap-align:start;}" + ".tm-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:38px;height:38px;border-radius:50%;border:1px solid var(--line,#DDEBE3);background:#fff;color:var(--green-dark,#146B42);font-size:24px;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(20,35,28,.18);display:none;}" + ".tm-nav:hover{background:var(--green-tint,#EAF6EE);}" + ".tm-prev{left:-8px;}" + ".tm-next{right:-8px;}" +
     ".tm-card{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line,#DDEBE3);border-radius:16px;box-shadow:0 4px 18px rgba(20,35,28,.06);padding:20px 18px 16px;display:flex;flex-direction:column;gap:12px;transition:transform .15s ease,box-shadow .15s ease;}" +
     ".tm-card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(20,35,28,.12);}" +
     ".tm-card:before{content:'';position:absolute;left:0;top:0;right:0;height:4px;background:linear-gradient(90deg,var(--green,#1F8A5D),var(--spark,#FFC93C));}" +
     ".tm-quote{position:absolute;top:10px;right:16px;font-size:64px;line-height:1;color:var(--green-tint,#EAF6EE);font-family:Georgia,serif;pointer-events:none;}" +
     ".tm-top{display:flex;align-items:center;gap:8px;font-size:18px;letter-spacing:1px;position:relative;}" +
     ".tm-score{font-size:13px;font-weight:700;color:var(--muted,#5B6B63);letter-spacing:0;}" +
-    ".tm-msg{margin:0;color:var(--ink,#14231C);font-size:15px;line-height:1.6;word-break:break-word;position:relative;}" +
+    ".tm-msg{margin:0;color:var(--ink,#14231C);font-size:15px;line-height:1.6;word-break:break-word;position:relative;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}" +
     ".tm-chip{align-self:flex-start;background:var(--green-tint,#EAF6EE);color:var(--green-dark,#146B42);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;}" +
     ".tm-foot{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:12px;border-top:1px solid var(--line,#DDEBE3);}" +
     ".tm-av{width:40px;height:40px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;flex:none;}" +
@@ -81,7 +81,7 @@
   host.innerHTML =
     '<div class="tm-head"><div><h2>What people say about us</h2><p id="tm-summary">Real words from our students, parents and visitors.</p></div>' +
     '<button type="button" class="btn btn-primary" id="tm-open">Share your thoughts</button></div>' +
-    '<div class="tm-grid" id="tm-grid"><div class="tm-empty">Loading messages...</div></div>' +
+    '<div class="tm-wrap"><button type="button" class="tm-nav tm-prev" id="tm-prev" aria-label="Previous">&#8249;</button><div class="tm-grid" id="tm-grid"><div class="tm-empty">Loading messages...</div></div><button type="button" class="tm-nav tm-next" id="tm-next" aria-label="Next">&#8250;</button></div>' +
     '<div class="tm-overlay" id="tm-overlay"><div class="tm-modal" role="dialog" aria-label="Share your thoughts">' +
       '<h3>Share your thoughts</h3>' +
       '<label>Your name<input type="text" id="tm-name" maxlength="80" placeholder="e.g. Amina W."></label>' +
@@ -98,6 +98,16 @@
   var grid = document.getElementById("tm-grid");
   var overlay = document.getElementById("tm-overlay");
   var courseSel = document.getElementById("tm-course");
+  var prevBtn = document.getElementById("tm-prev"), nextBtn = document.getElementById("tm-next");
+  function updateNav() {
+    var more = grid.scrollWidth > grid.clientWidth + 4;
+    prevBtn.style.display = (more && grid.scrollLeft > 4) ? "block" : "none";
+    nextBtn.style.display = (more && grid.scrollLeft + grid.clientWidth < grid.scrollWidth - 4) ? "block" : "none";
+  }
+  prevBtn.addEventListener("click", function () { grid.scrollBy({ left: -grid.clientWidth * 0.9, behavior: "smooth" }); });
+  nextBtn.addEventListener("click", function () { grid.scrollBy({ left: grid.clientWidth * 0.9, behavior: "smooth" }); });
+  grid.addEventListener("scroll", updateNav);
+  window.addEventListener("resize", updateNav);
 
   function card(t) {
     var col = pick(t.name);
@@ -106,7 +116,7 @@
     var r = Number(t.rating) || 0;
     return '<div class="tm-card" data-id="' + Number(t.id) + '"><span class="tm-quote">&ldquo;</span>' +
       '<div class="tm-top">' + stars(r) + '<span class="tm-score">' + r.toFixed(1) + '</span></div>' +
-      '<p class="tm-msg">' + esc(t.message) + '</p>' +
+      '<p class="tm-msg" title="' + esc(t.message) + '">' + esc(t.message) + '</p>' +
       (t.course ? '<span class="tm-chip">' + esc(t.course) + '</span>' : "") +
       '<div class="tm-foot">' +
         '<div class="tm-av" style="background:linear-gradient(135deg,' + col[0] + ',' + col[1] + ');">' + init + '</div>' +
@@ -122,8 +132,8 @@
     list.forEach(function (t) { sum += Number(t.rating) || 0; });
     el.innerHTML = '<span style="color:#F5B301;">&#9733;</span> <strong>' + (sum / list.length).toFixed(1) + '</strong> average from ' + list.length + ' review' + (list.length === 1 ? "" : "s");
   }
-  function render() {
-    grid.innerHTML = list.length ? list.map(card).join("") : '<div class="tm-empty">No messages yet. Be the first to share your thoughts!</div>';
+  function render() { setTimeout(updateNav, 50);
+    grid.innerHTML = list.length ? list.slice(0, 6).map(card).join("") : '<div class="tm-empty">No messages yet. Be the first to share your thoughts!</div>';
     summary();
   }
   function load() {
