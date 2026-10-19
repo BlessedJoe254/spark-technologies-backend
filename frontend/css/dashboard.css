@@ -1043,3 +1043,11 @@
 .cp-s2 { font-size: 8px; font-weight: 700; letter-spacing: 0.6px; margin-top: 3px; color: #12275A; }
 .cp-t1 { position: absolute; left: 22px; bottom: -34px; width: 0; height: 0; border-left: 13px solid transparent; border-right: 13px solid transparent; border-top: 34px solid #12275A; }
 .cp-t2 { position: absolute; right: 22px; bottom: -34px; width: 0; height: 0; border-left: 13px solid transparent; border-right: 13px solid transparent; border-top: 34px solid #1F3A7A; }
+
+/* cert v3 */
+.cv { position: relative; width: 1123px; height: 794px; box-sizing: border-box; overflow: hidden; background: #FAF7F5; }
+.cv-bg { position: absolute; left: 0; top: 0; width: 1123px; height: 794px; }
+.cv-name { position: absolute; left: 225px; width: 700px; top: 318px; height: 112px; line-height: 112px; text-align: center; white-space: nowrap; font-family: 'Great Vibes', 'Dancing Script', cursive; font-size: 78px; color: #0F1F5C; }
+.cv-date { position: absolute; left: 278px; width: 600px; top: 447px; line-height: 26px; text-align: center; white-space: nowrap; font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 17px; letter-spacing: 1.5px; color: #14257A; }
+.cv-courses { position: absolute; left: 296px; width: 560px; top: 502px; height: 62px; overflow: hidden; text-align: center; text-transform: uppercase; line-height: 1.25; font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 24px; letter-spacing: 1px; color: #7A4A1E; }
+.cv-c { white-space: nowrap; }

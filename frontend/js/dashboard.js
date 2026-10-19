@@ -1084,7 +1084,7 @@ async function generateCertificate() {
   const coursesEl = document.getElementById("cert-courses-text");
   if (nameEl) nameEl.textContent = student.full_name;
   if (dateEl) dateEl.textContent = "AWARDED ON THIS " + ordinalSuffix(now.getDate()) + " DAY OF " + now.toLocaleString("en-US", { month: "long" }).toUpperCase() + " " + now.getFullYear();
-  if (coursesEl) coursesEl.textContent = completedTitles.join("   |   ");
+  if (coursesEl) coursesEl.textContent = completedTitles.join("   |   "); if (typeof fitCertText === "function") fitCertText();
 
   const genBtn = document.getElementById("cert-generate-btn");
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = "Generating..."; }
@@ -2148,3 +2148,22 @@ function courseDurationText(c) {
     if (save) saveEdit(save);
   });
 })();
+
+/* ---------- Certificate text fitting ---------- */
+function fitCertText() {
+  var n = document.getElementById("cert-name");
+  if (n) { var s = 78; n.style.fontSize = s + "px"; while (n.scrollWidth > n.clientWidth && s > 30) { s -= 2; n.style.fontSize = s + "px"; } }
+  var c = document.getElementById("cert-courses-text");
+  if (c) {
+    var parts = (c.textContent || "").split("|").map(function (t) { return t.trim(); }).filter(Boolean);
+    c.innerHTML = parts.map(function (t, i) {
+      return '<span class="cv-c">' + escapeHtml(t) + (i < parts.length - 1 ? '<span class="cv-sep"> |</span>' : "") + "</span>";
+    }).join(" ");
+    var f = 24; c.style.fontSize = f + "px";
+    while (c.scrollHeight > c.clientHeight && f > 12) { f -= 1; c.style.fontSize = f + "px"; }
+    var items = c.querySelectorAll(".cv-c");
+    for (var i = 0; i < items.length - 1; i++) {
+      if (items[i + 1].offsetTop > items[i].offsetTop + 2) { var sp = items[i].querySelector(".cv-sep"); if (sp) sp.style.visibility = "hidden"; }
+    }
+  }
+}
