@@ -515,11 +515,12 @@ function trainerGroupHtml(g) {
 
       "<div class=\"section-subhead\" style=\"margin-top:14px;\">Students</div>" +
       (g.students.length === 0 ? "<div class=\"empty-state\">No students enrolled yet.</div>" :
-        "<table class=\"simple-table\"><thead><tr><th>Name</th><th>Phone</th><th>Payment</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th><th>Files</th><th></th></tr></thead><tbody>" +
+        "<table class=\"simple-table\"><thead><tr><th>Name</th><th>Phone</th><th>Intake</th><th>Payment</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th><th>Files</th><th></th></tr></thead><tbody>" +
         g.students.map(s => (
           "<tr data-student-id=\"" + s.id + "\">" +
             "<td>" + escapeHtml(s.full_name) + "</td>" +
             "<td>" + escapeHtml(s.phone || "-") + "</td>" +
+            "<td>" + escapeHtml(s.intake_name || "-") + "</td>" +
             "<td>" + statusBadge(s.has_paid, 0) + "</td>" +
             "<td style=\"min-width:110px;\">" + attendanceBarHtml(s.attended, 10) + "</td>" +
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"cat1\" value=\"" + (s.scores.cat1 ? s.scores.cat1.score : "") + "\" style=\"width:55px;\"></td>" +
@@ -1216,3 +1217,117 @@ async function loadAdminCatSubmissions() {
   } catch (err) { container.innerHTML = "<div class=\"empty-state\">Could not load CAT submissions right now.</div>"; }
 }
 
+/* ---------- Admin: Intakes ---------- */
+(function () {
+  function esc(v) {
+    v = v == null ? "" : String(v);
+    if (typeof escapeHtml === "function") return escapeHtml(v);
+    return v.replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
+  }
+  function day(d) { return d ? String(d).slice(0, 10) : "-"; }
+
+  async function call(method, path, body) {
+    const opts = { method: method, credentials: "include", headers: {} };
+    if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+    const res = await fetch(API_BASE + path, opts);
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error((data && data.error) || "Request failed");
+    return data;
+  }
+
+  function showMsg(text, isError) {
+    const el = document.getElementById("intake-msg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.style.color = isError ? "#c0392b" : "#1e8449";
+  }
+
+  async function loadIntakes() {
+    const listEl = document.getElementById("intake-list");
+    const assignEl = document.getElementById("intake-assign-area");
+    if (!listEl || !assignEl) return;
+    try {
+      const results = await Promise.all([
+        call("GET", "/api/admin/intakes"),
+        call("GET", "/api/admin/intakes/enrollments")
+      ]);
+      const intakes = results[0] || [];
+      const enrollments = results[1] || [];
+
+      listEl.innerHTML = intakes.length === 0
+        ? "<div class=\"empty-state\">No intakes yet. Create one above.</div>"
+        : "<table class=\"simple-table\"><thead><tr><th>Intake</th><th>Start date</th><th>Students</th><th></th></tr></thead><tbody>" +
+          intakes.map(function (i) {
+            return "<tr><td>" + esc(i.name) + "</td><td>" + esc(day(i.start_date)) + "</td><td>" + esc(i.student_count) + "</td>" +
+              "<td><button type=\"button\" class=\"btn btn-ghost\" data-intake-del=\"" + esc(i.id) + "\" style=\"padding:5px 10px;font-size:12px;\">Delete</button></td></tr>";
+          }).join("") + "</tbody></table>";
+
+      const options = "<option value=\"\">No intake (clear)</option>" +
+        intakes.map(function (i) { return "<option value=\"" + esc(i.id) + "\">" + esc(i.name) + "</option>"; }).join("");
+
+      assignEl.innerHTML = enrollments.length === 0
+        ? "<div class=\"empty-state\">No enrolled students yet.</div>"
+        : "<div style=\"display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;\">" +
+            "<select id=\"intake-target\">" + options + "</select>" +
+            "<button type=\"button\" class=\"btn btn-ghost\" id=\"intake-assign-btn\" style=\"padding:8px 14px;font-size:13px;\">Assign selected</button>" +
+          "</div>" +
+          "<table class=\"simple-table\"><thead><tr><th><input type=\"checkbox\" id=\"intake-check-all\"></th><th>Student</th><th>Phone</th><th>Course</th><th>Intake</th></tr></thead><tbody>" +
+          enrollments.map(function (e) {
+            return "<tr><td><input type=\"checkbox\" class=\"intake-check\" data-enrollment-id=\"" + esc(e.enrollment_id) + "\"></td>" +
+              "<td>" + esc(e.full_name) + "</td><td>" + esc(e.phone || "-") + "</td><td>" + esc(e.course_title) + "</td><td>" + esc(e.intake_name || "-") + "</td></tr>";
+          }).join("") + "</tbody></table>";
+    } catch (err) {
+      showMsg("Could not load intakes: " + err.message, true);
+    }
+  }
+
+  document.addEventListener("click", async function (ev) {
+    const tab = ev.target.closest(".admin-tab");
+    if (tab && tab.dataset.tab === "intakes") { loadIntakes(); return; }
+
+    const del = ev.target.closest("[data-intake-del]");
+    if (del) {
+      if (!confirm("Delete this intake?")) return;
+      try {
+        await call("DELETE", "/api/admin/intakes/" + del.getAttribute("data-intake-del"));
+        showMsg("Intake deleted.", false);
+      } catch (err) { showMsg(err.message, true); }
+      loadIntakes();
+      return;
+    }
+
+    if (ev.target.id === "intake-assign-btn") {
+      const ids = Array.prototype.map.call(
+        document.querySelectorAll(".intake-check:checked"),
+        function (c) { return Number(c.getAttribute("data-enrollment-id")); }
+      );
+      const target = document.getElementById("intake-target").value;
+      try {
+        const out = await call("POST", "/api/admin/intakes/assign", { enrollment_ids: ids, intake_id: target ? Number(target) : null });
+        showMsg("Updated " + out.updated + " student(s).", false);
+      } catch (err) { showMsg(err.message, true); }
+      loadIntakes();
+    }
+  });
+
+  document.addEventListener("change", function (ev) {
+    if (ev.target.id === "intake-check-all") {
+      document.querySelectorAll(".intake-check").forEach(function (c) { c.checked = ev.target.checked; });
+    }
+  });
+
+  document.addEventListener("submit", async function (ev) {
+    if (ev.target.id !== "intake-create-form") return;
+    ev.preventDefault();
+    const nameEl = document.getElementById("intake-name");
+    const startEl = document.getElementById("intake-start");
+    try {
+      await call("POST", "/api/admin/intakes/create", { name: nameEl.value, start_date: startEl.value });
+      nameEl.value = "";
+      startEl.value = "";
+      showMsg("Intake created.", false);
+    } catch (err) { showMsg(err.message, true); }
+    loadIntakes();
+  });
+})();

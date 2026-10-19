@@ -196,6 +196,7 @@
           <button type="button" class="admin-tab" data-tab="messages">Messages</button>
           <button type="button" class="admin-tab" data-tab="users">Users</button>
           <button type="button" class="admin-tab" data-tab="certificates">Certificates</button>
+          <button type="button" class="admin-tab" data-tab="intakes">Intakes</button>
         </div>
 
         <div class="admin-tab-panel" data-tab-panel="overview">
@@ -270,6 +271,20 @@
           <div id="admin-users-table"></div>
         </div>
 
+        <div class="admin-tab-panel" data-tab-panel="intakes" style="display:none;">
+          <div class="section-title">
+            <h2>Intakes</h2>
+          </div>
+          <form id="intake-create-form" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <input type="text" id="intake-name" placeholder="Intake name (e.g. January 2027)" required style="flex:1;min-width:180px;">
+            <input type="date" id="intake-start" required>
+            <button type="submit" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;">Create intake</button>
+          </form>
+          <div id="intake-msg" style="margin-bottom:10px;font-size:13px;"></div>
+          <div id="intake-list"></div>
+          <div class="section-subhead" style="margin-top:18px;">Assign students to an intake</div>
+          <div id="intake-assign-area"></div>
+        </div>
         <div class="admin-tab-panel" data-tab-panel="certificates" style="display:none;">
           <div class="section-title">
             <h2>Generate Certificates</h2>
