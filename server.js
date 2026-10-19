@@ -879,13 +879,17 @@ app.get("/api/trainer/earnings", requireLogin, requireRole("trainer"), async (re
 
 app.get("/api/admin/earnings", requireLogin, requireRole("admin"), async (req, res) => {
   try {
+    const range = monthRange(req.query.month);
+    const monthSql = range.all ? "" : "AND e.paid_at >= ? AND e.paid_at < ? ";
+    const params = range.all ? [] : [range.start, range.end];
     const [rows] = await pool.query(
       "SELECT t.id AS trainer_id, t.full_name AS trainer_name, c.id AS course_id, c.fee_kes, COUNT(e.id) AS paid_count " +
       "FROM users t " +
       "JOIN courses c ON c.trainer_id = t.id " +
       "JOIN enrollments e ON e.course_id = c.id AND e.has_paid = TRUE " +
-      "WHERE t.role = 'trainer' AND c.fee_kes IS NOT NULL " +
-      "GROUP BY t.id, t.full_name, c.id, c.fee_kes"
+      "WHERE t.role = 'trainer' AND c.fee_kes IS NOT NULL " + monthSql +
+      "GROUP BY t.id, t.full_name, c.id, c.fee_kes",
+      params
     );
 
     const byTrainer = {};

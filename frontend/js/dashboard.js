@@ -777,17 +777,17 @@ async function loadAdminEarnings() {
   const container = document.getElementById("admin-earnings");
   if (!container) return;
   try {
-    const res = await fetch(API_BASE + "/api/admin/earnings", { credentials: "include" });
+    const res = await fetch(API_BASE + "/api/admin/earnings?month=" + encodeURIComponent(window.adminEarningsMonth || currentMonthKey()), { credentials: "include" });
     if (!res.ok) throw new Error("Request failed");
     const d = await res.json();
-    container.innerHTML =
+    container.innerHTML = adminMonthPickerHtml() +
       "<div class=\"earnings-cards\">" +
         earningsCard("Total collected", formatKes(d.total_collected), "") +
         earningsCard("Owed to trainers (" + d.trainer_share_pct + "%)", formatKes(d.total_owed_to_trainers), "is-highlight") +
         earningsCard("Company revenue (" + d.company_share_pct + "%)", formatKes(d.total_company_share), "") +
         earningsCard("Tax (" + d.tax_share_pct + "%)", formatKes(d.total_tax), "") +
       "</div>" +
-      (d.trainers.length === 0 ? "<div class=\"empty-state\">No payments collected yet.</div>" :
+      (d.trainers.length === 0 ? "<div class=\"empty-state\">No payments collected for this period.</div>" :
         "<table class=\"simple-table\"><thead><tr><th>Trainer</th><th>Paid students</th><th>Total collected</th><th>You owe them</th><th>Company share</th><th>Tax</th></tr></thead><tbody>" +
         d.trainers.map(t => (
           "<tr><td>" + escapeHtml(t.trainer_name) + "</td><td>" + t.paid_students + "</td><td>" + formatKes(t.total_collected) + "</td><td>" + formatKes(t.owed_to_trainer) + "</td><td>" + formatKes(t.company_share) + "</td><td>" + formatKes(t.tax_share) + "</td></tr>"
@@ -1421,5 +1421,27 @@ document.addEventListener("change", function (ev) {
   if (ev.target && ev.target.id === "trainer-earnings-month") {
     window.trainerEarningsMonth = ev.target.value;
     loadTrainerEarnings();
+  }
+});
+
+/* ---------- Admin earnings: monthly view ---------- */
+function adminMonthPickerHtml() {
+  var sel = window.adminEarningsMonth || currentMonthKey();
+  var now = new Date();
+  var opts = '<option value="all"' + (sel === "all" ? " selected" : "") + '>All time</option>';
+  for (var i = 0; i < 12; i++) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    var key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    var label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+    opts += '<option value="' + key + '"' + (sel === key ? " selected" : "") + '>' + label + '</option>';
+  }
+  return '<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;">' +
+    '<label for="admin-earnings-month" style="font-size:13px;">Month</label>' +
+    '<select id="admin-earnings-month">' + opts + '</select></div>';
+}
+document.addEventListener("change", function (ev) {
+  if (ev.target && ev.target.id === "admin-earnings-month") {
+    window.adminEarningsMonth = ev.target.value;
+    loadAdminEarnings();
   }
 });
