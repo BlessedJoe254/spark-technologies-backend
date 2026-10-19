@@ -1437,7 +1437,10 @@ function adminMonthPickerHtml() {
   }
   return '<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;">' +
     '<label for="admin-earnings-month" style="font-size:13px;">Month</label>' +
-    '<select id="admin-earnings-month">' + opts + '</select></div>';
+    '<select id="admin-earnings-month">' + opts + '</select>' +
+    '<span id="admin-earnings-hint" style="font-size:12px;color:#1e8449;"></span>' +
+    '<button type="button" class="btn btn-ghost" id="admin-earnings-pdf" style="padding:6px 12px;font-size:13px;">Download PDF</button>' +
+    '<button type="button" class="btn btn-ghost" id="admin-earnings-print" style="padding:6px 12px;font-size:13px;">Print</button></div>';
 }
 document.addEventListener("change", function (ev) {
   if (ev.target && ev.target.id === "admin-earnings-month") {
@@ -1445,3 +1448,130 @@ document.addEventListener("change", function (ev) {
     loadAdminEarnings();
   }
 });
+
+/* ---------- Admin earnings: print / PDF report ---------- */
+(function () {
+  function esc(v) {
+    v = v == null ? "" : String(v);
+    if (typeof escapeHtml === "function") return escapeHtml(v);
+    return v.replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
+  }
+  function monthLabel(key) {
+    if (key === "all") return "All time";
+    var p = key.split("-");
+    return new Date(Number(p[0]), Number(p[1]) - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  }
+  function buildReport(d, key) {
+    var label = monthLabel(key);
+    var logo = new URL("assets/logo-sidebar.png", window.location.href).href;
+    var trainers = d.trainers || [];
+    var paidTotal = trainers.reduce(function (s, t) { return s + Number(t.paid_students || 0); }, 0);
+    var rows = trainers.map(function (t) {
+      return "<tr><td>" + esc(t.trainer_name) + "</td><td class=\"n\">" + esc(t.paid_students) + "</td><td class=\"n\">" +
+        formatKes(t.total_collected) + "</td><td class=\"n b\">" + formatKes(t.owed_to_trainer) + "</td><td class=\"n\">" +
+        formatKes(t.company_share) + "</td><td class=\"n\">" + formatKes(t.tax_share) + "</td></tr>";
+    }).join("");
+    var table = trainers.length === 0
+      ? "<p class=\"empty\">No payments collected for this period.</p>"
+      : "<table><thead><tr><th>Trainer</th><th class=\"n\">Paid students</th><th class=\"n\">Total collected</th><th class=\"n\">Pay trainer</th><th class=\"n\">Company share</th><th class=\"n\">Tax</th></tr></thead><tbody>" +
+        rows +
+        "<tr class=\"tot\"><td>Total</td><td class=\"n\">" + paidTotal + "</td><td class=\"n\">" + formatKes(d.total_collected) +
+        "</td><td class=\"n\">" + formatKes(d.total_owed_to_trainers) + "</td><td class=\"n\">" + formatKes(d.total_company_share) +
+        "</td><td class=\"n\">" + formatKes(d.total_tax) + "</td></tr></tbody></table>";
+    var summary = "<table class=\"sum\"><tr>" +
+      "<td><div class=\"l\">Total collected</div><div class=\"v\">" + formatKes(d.total_collected) + "</div></td>" +
+      "<td><div class=\"l\">Owed to trainers (" + esc(d.trainer_share_pct) + "%)</div><div class=\"v\">" + formatKes(d.total_owed_to_trainers) + "</div></td>" +
+      "<td><div class=\"l\">Company revenue (" + esc(d.company_share_pct) + "%)</div><div class=\"v\">" + formatKes(d.total_company_share) + "</div></td>" +
+      "<td><div class=\"l\">Tax (" + esc(d.tax_share_pct) + "%)</div><div class=\"v\">" + formatKes(d.total_tax) + "</div></td>" +
+      "</tr></table>";
+    var css = [
+      "@page{size:A4;margin:16mm}",
+      "*{box-sizing:border-box}",
+      "body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#14231a;font-size:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}",
+      "#wm{position:fixed;top:50%;left:50%;width:150mm;transform:translate(-50%,-50%);opacity:.08;z-index:0}",
+      ".page{position:relative;z-index:1}",
+      "h1{margin:0 0 2px;font-size:20px}",
+      ".sub{color:#4b5d52;margin:0 0 14px}",
+      "table{width:100%;border-collapse:collapse;margin-bottom:16px}",
+      "th,td{padding:7px 8px;border-bottom:1px solid #cfdcd3;text-align:left}",
+      "th{background:rgba(30,132,73,.14);font-size:11px;text-transform:uppercase;letter-spacing:.03em}",
+      ".n{text-align:right}",
+      ".b{font-weight:bold}",
+      "tr{page-break-inside:avoid}",
+      ".tot td{font-weight:bold;border-top:2px solid #1e8449}",
+      ".sum td{border:1px solid #cfdcd3;padding:10px;vertical-align:top}",
+      ".sum .l{font-size:10px;color:#4b5d52;text-transform:uppercase}",
+      ".sum .v{font-size:16px;font-weight:bold;margin-top:3px}",
+      ".note{color:#4b5d52;font-size:11px;margin-top:10px}",
+      ".empty{padding:14px 0}"
+    ].join("");
+    return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>" + esc("Spark Finance - " + label) + "</title><style>" + css + "</style></head><body>" +
+      "<img id=\"wm\" src=\"" + esc(logo) + "\" alt=\"\">" +
+      "<div class=\"page\">" +
+      "<h1>Spark Technologies - Finance report</h1>" +
+      "<p class=\"sub\">Period: <b>" + esc(label) + "</b> &nbsp; | &nbsp; Generated " + esc(new Date().toLocaleString("en-GB")) + "</p>" +
+      summary +
+      "<h3 style=\"margin:0 0 6px;\">Trainer payments</h3>" +
+      table +
+      "<p class=\"note\">Payments are counted in the month they were marked as paid. Payments recorded before monthly tracking began are counted in the month the student enrolled.</p>" +
+      "</div></body></html>";
+  }
+  function printHtml(html, fileTitle) {
+    var old = document.getElementById("admin-report-frame");
+    if (old) old.remove();
+    var f = document.createElement("iframe");
+    f.id = "admin-report-frame";
+    f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(f);
+    var w = f.contentWindow;
+    var doc = w.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    var prevTitle = document.title;
+    document.title = fileTitle;
+    var done = false;
+    function go() {
+      if (done) return;
+      done = true;
+      w.focus();
+      w.print();
+      document.title = prevTitle;
+    }
+    var img = doc.getElementById("wm");
+    if (img && !img.complete) {
+      img.onload = go;
+      img.onerror = go;
+      setTimeout(go, 3000);
+    } else {
+      setTimeout(go, 150);
+    }
+  }
+  function runReport(isPdf) {
+    var key = window.adminEarningsMonth || currentMonthKey();
+    if (isPdf) {
+      var hint = document.getElementById("admin-earnings-hint");
+      if (hint) {
+        hint.textContent = "In the print window, set Destination to Save as PDF.";
+        setTimeout(function () {
+          var h = document.getElementById("admin-earnings-hint");
+          if (h) h.textContent = "";
+        }, 9000);
+      }
+    }
+    fetch(API_BASE + "/api/admin/earnings?month=" + encodeURIComponent(key), { credentials: "include" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Request failed");
+        return res.json();
+      })
+      .then(function (d) {
+        printHtml(buildReport(d, key), "Spark-Finance-" + (key === "all" ? "All-time" : key));
+      })
+      .catch(function () { alert("Could not load the report data right now."); });
+  }
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("#admin-earnings-print, #admin-earnings-pdf");
+    if (!btn) return;
+    runReport(btn.id === "admin-earnings-pdf");
+  });
+})();
