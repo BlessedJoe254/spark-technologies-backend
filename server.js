@@ -986,7 +986,7 @@ async function logActivity(actorId, actorName, actionType, description) {
 app.get("/api/activity/recent", async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT action_type, description, created_at FROM activity_log WHERE action_type NOT IN ('user_deleted','user_deactivated','user_reactivated','message','contact_replied') ORDER BY created_at DESC LIMIT 10"
+      "SELECT action_type, REPLACE(description, 'Blessed Joe', 'Admin') AS description, created_at FROM activity_log WHERE action_type NOT IN ('user_deleted','user_deactivated','user_reactivated','message','contact_replied') ORDER BY created_at DESC LIMIT 10"
     );
     res.json(rows);
   } catch (err) {
