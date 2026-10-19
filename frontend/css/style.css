@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
 
 :root {
   --ink: #14231C;
@@ -183,4 +183,12 @@ button { font-family: inherit; cursor: pointer; }
   gap: 8px;
 }
 
-
+/* sidebar v2 */
+.sidebar { box-sizing: border-box; overflow: hidden; max-height: 100vh; max-height: 100dvh; }
+.sidebar__logo { flex: none; padding: 4px 0 12px 0; }
+.sidebar nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; gap: 2px; margin-top: 0; padding-right: 2px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent; }
+.sidebar nav::-webkit-scrollbar { width: 6px; }
+.sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 6px; }
+.nav-label { margin: 14px 12px 6px 12px; color: #9DBBAB; }
+.sidebar a.nav-link { padding: 9px 12px; }
+.sidebar__footer { flex: none; margin-top: 0; }
