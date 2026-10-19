@@ -1315,6 +1315,88 @@ app.post("/api/admin/courses/:id/edit", requireLogin, requireRole("admin"), asyn
   }
 });
 
+// ---------- Testimonials (what people say about us) ----------
+async function ensureTestimonialsTable() {
+  try {
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS testimonials (" +
+      "id INT AUTO_INCREMENT PRIMARY KEY, " +
+      "name VARCHAR(80) NOT NULL, " +
+      "role VARCHAR(20) NOT NULL, " +
+      "course VARCHAR(120) NULL, " +
+      "rating TINYINT NOT NULL, " +
+      "message VARCHAR(400) NOT NULL, " +
+      "created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+      ") CHARACTER SET utf8mb4"
+    );
+  } catch (err) {
+    console.warn("testimonials table setup failed:", err.message);
+  }
+}
+ensureTestimonialsTable();
+
+const testimonialHits = new Map();
+
+app.get("/api/testimonials", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, name, role, course, rating, message, created_at FROM testimonials ORDER BY id DESC LIMIT 60"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Testimonials load error:", err.message);
+    res.json([]);
+  }
+});
+
+app.post("/api/testimonials", async (req, res) => {
+  try {
+    const body = req.body || {};
+    if (body.website) return res.json({ success: true }); // bot trap: pretend it worked
+
+    const now = Date.now();
+    const key = req.ip || "unknown";
+    const recent = (testimonialHits.get(key) || []).filter(t => now - t < 3600000);
+    if (recent.length >= 3) return res.status(429).json({ error: "You have sent a few messages already. Please try again in an hour." });
+
+    const name = String(body.name || "").trim().slice(0, 80);
+    const role = ["Student", "Parent", "Trainer", "Visitor"].includes(body.role) ? body.role : "Visitor";
+    const course = String(body.course || "").trim().slice(0, 120);
+    const rating = Math.floor(Number(body.rating));
+    const message = String(body.message || "").trim();
+
+    if (name.length < 2) return res.status(400).json({ error: "Please enter your name." });
+    if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ error: "Please choose a star rating." });
+    if (message.length < 10) return res.status(400).json({ error: "Please write at least 10 characters." });
+    if (message.length > 400) return res.status(400).json({ error: "Please keep your message under 400 characters." });
+
+    const [r] = await pool.query(
+      "INSERT INTO testimonials (name, role, course, rating, message) VALUES (?, ?, ?, ?, ?)",
+      [name, role, course || null, rating, message]
+    );
+    recent.push(now);
+    testimonialHits.set(key, recent);
+    res.json({ success: true, id: r.insertId });
+  } catch (err) {
+    console.error("Testimonial save error:", err.message);
+    res.status(500).json({ error: "Could not send your message right now." });
+  }
+});
+
+app.get("/api/testimonials/can-moderate", requireLogin, requireRole("admin"), (req, res) => {
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/testimonials/:id/delete", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    await pool.query("DELETE FROM testimonials WHERE id = ?", [Number(req.params.id)]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Testimonial delete error:", err.message);
+    res.status(500).json({ error: "Could not delete that message." });
+  }
+});
+
 app.post("/api/admin/courses/create", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     const { title, description, level, duration_weeks, duration_value, duration_unit, fee_kes } = req.body;
