@@ -1332,34 +1332,68 @@ async function loadAdminCatSubmissions() {
   });
 })();
 
-/* ---------- Admin: Intakes sidebar ---------- */
+/* ---------- Admin: sidebar views ---------- */
 (function () {
+  var VIEWS = ["overview", "finance", "courses", "messages", "users", "certificates", "intakes"];
+  var applied = null;
+
+  function panel() { return document.getElementById("admin-panel"); }
   function adminVisible() {
-    var p = document.getElementById("admin-panel");
+    var p = panel();
     return !!p && window.getComputedStyle(p).display !== "none";
   }
-  function openIntakes() {
-    var tab = document.querySelector('.admin-tab[data-tab="intakes"]');
-    var panel = document.getElementById("admin-panel");
-    if (tab) tab.click();
-    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  function currentView() {
+    var h = (window.location.hash || "").replace("#", "");
+    return VIEWS.indexOf(h) >= 0 ? h : "";
   }
-  var opened = false;
+  function setSiblings(view) {
+    var p = panel();
+    if (!p || !p.parentElement) return;
+    Array.prototype.forEach.call(p.parentElement.children, function (c) {
+      if (c === p || c.classList.contains("topbar")) return;
+      if (view) {
+        if (c.dataset.pd === undefined) c.dataset.pd = c.style.display;
+        c.style.display = "none";
+      } else if (c.dataset.pd !== undefined) {
+        c.style.display = c.dataset.pd;
+        delete c.dataset.pd;
+      }
+    });
+  }
+  function markActive(view) {
+    document.querySelectorAll(".sidebar .nav-link").forEach(function (a) {
+      a.classList.toggle("active", a.getAttribute("data-admin-view") === view);
+    });
+  }
+  function openTab(view) {
+    var tab = document.querySelector('.admin-tab[data-tab="' + view + '"]');
+    if (!tab) return false;
+    tab.click();
+    var target = document.querySelector('.admin-tab-panel[data-tab-panel="' + view + '"]');
+    return !!target && target.style.display !== "none";
+  }
   function sync() {
     var show = adminVisible();
-    var link = document.getElementById("nav-intakes");
+    document.querySelectorAll(".admin-nav").forEach(function (a) { a.style.display = show ? "" : "none"; });
     var label = document.getElementById("nav-admin-label");
-    if (link) link.style.display = show ? "" : "none";
     if (label) label.style.display = show ? "" : "none";
-    if (show && !opened && window.location.hash === "#intakes") { opened = true; openIntakes(); }
+    var tabs = document.getElementById("admin-tabs");
+    if (tabs) tabs.style.display = "none";
+
+    var view = show ? currentView() : "";
+    setSiblings(view);
+    if (view) {
+      if (applied !== view && openTab(view)) {
+        applied = view;
+        markActive(view);
+        window.scrollTo(0, 0);
+      }
+    } else if (applied) {
+      openTab("overview");
+      applied = null;
+    }
   }
-  document.addEventListener("click", function (ev) {
-    var link = ev.target.closest("#nav-intakes");
-    if (!link) return;
-    ev.preventDefault();
-    history.replaceState(null, "", "#intakes");
-    openIntakes();
-  });
+  window.addEventListener("hashchange", sync);
   setInterval(sync, 700);
   sync();
 })();
