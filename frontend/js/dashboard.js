@@ -1335,7 +1335,7 @@ async function loadAdminCatSubmissions() {
 
 /* ---------- Admin: sidebar views ---------- */
 (function () {
-  var VIEWS = ["overview", "finance", "courses", "messages", "users", "certificates", "intakes"];
+  var VIEWS = ["overview", "finance", "courses", "messages", "users", "students", "certificates", "intakes"];
   var applied = null;
 
   function panel() { return document.getElementById("admin-panel"); }
@@ -1680,3 +1680,371 @@ document.addEventListener("click", function (ev) {
     })
     .catch(function () { alert("Could not reach the server."); btn.disabled = false; });
 });
+
+/* ---------- Admin: Students overview page ---------- */
+(function () {
+  var STATE = { all: [], loaded: false, loading: false, last: 0 };
+  var STATUS = {
+    active: { label: "Active", bg: "#e3f4ea", fg: "#1e8449" },
+    completed: { label: "Completed", bg: "#e1ecfb", fg: "#1f5fae" },
+    pending: { label: "Pending", bg: "#fdf0d5", fg: "#9a6700" },
+    inactive: { label: "Inactive", bg: "#ececec", fg: "#5f6b64" }
+  };
+
+  function esc(v) {
+    v = v == null ? "" : String(v);
+    if (typeof escapeHtml === "function") return escapeHtml(v);
+    return v.replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; });
+  }
+  function val(id) { var e = document.getElementById(id); return e ? e.value : ""; }
+  function selText(id) {
+    var e = document.getElementById(id);
+    return e && e.selectedIndex >= 0 ? e.options[e.selectedIndex].text : "";
+  }
+  function toDate(v) {
+    if (!v) return null;
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function fmtDate(v) {
+    var d = toDate(v);
+    return d ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "";
+  }
+  function statusOf(courses) {
+    if (!courses.length) return "inactive";
+    var access = courses.filter(function (c) { return c.paid || c.free || c.completed; });
+    if (!access.length) return "pending";
+    return access.every(function (c) { return c.completed; }) ? "completed" : "active";
+  }
+  function chipState(c) {
+    if (c.completed) return "Completed";
+    if (c.paid) return "Paid";
+    if (c.free) return "Free";
+    return "Unpaid";
+  }
+  function badgeHtml(status) {
+    var s = STATUS[status];
+    return '<span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:bold;background:' + s.bg + ';color:' + s.fg + ';">' + s.label + '</span>';
+  }
+  function chipHtml(c) {
+    var st = chipState(c);
+    var col = { Completed: ["#e1ecfb", "#1f5fae"], Paid: ["#e3f4ea", "#1e8449"], Free: ["#e3f4ea", "#1e8449"], Unpaid: ["#fdf0d5", "#9a6700"] }[st];
+    var tip = "Enrolled " + (fmtDate(c.enrolled_at) || "date unknown") + (c.intake_name ? " | Intake: " + c.intake_name : "");
+    return '<span title="' + esc(tip) + '" style="display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:999px;font-size:12px;background:' + col[0] + ';color:' + col[1] + ';">' + esc(c.title) + ' <b>' + st + '</b></span>';
+  }
+
+  function field(label, inner) {
+    return '<label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:#4b5d52;text-transform:uppercase;letter-spacing:.03em;">' + label + inner + '</label>';
+  }
+  function opts(list) {
+    return list.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join("");
+  }
+  function buildShell() {
+    var r = document.getElementById("students-root");
+    if (!r) return false;
+    if (r.getAttribute("data-built")) return true;
+    r.setAttribute("data-built", "1");
+    var ctl = 'style="font-size:13px;padding:7px 8px;"';
+    r.innerHTML =
+      '<div class="section-title"><h2>Students</h2><span class="stat-trend" id="stu-count">0 members</span></div>' +
+      '<div id="stu-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px;"></div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px;">' +
+        field("Search", '<input type="search" id="stu-search" placeholder="Name, phone or email" ' + ctl + '>') +
+        field("Status", '<select id="stu-status" ' + ctl + '>' + opts([["all", "All statuses"], ["active", "Active"], ["completed", "Completed"], ["pending", "Pending"], ["inactive", "Inactive"]]) + '</select>') +
+        field("Course", '<select id="stu-course" ' + ctl + '><option value="all">All courses</option></select>') +
+        field("Date based on", '<select id="stu-basis" ' + ctl + '>' + opts([["account", "Account created"], ["course", "Joined a course"]]) + '</select>') +
+        field("Period", '<select id="stu-period" ' + ctl + '>' + opts([["all", "All time"], ["3", "Last 3 months"], ["6", "Last 6 months"], ["9", "Last 9 months"], ["12", "Last 12 months"]]) + '</select>') +
+        field("Sort by", '<select id="stu-sort" ' + ctl + '>' + opts([["name", "Name (A-Z)"], ["joined_new", "Date joined (newest)"], ["joined_old", "Date joined (oldest)"], ["course", "Course (A-Z)"]]) + '</select>') +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">' +
+        '<button type="button" class="btn btn-ghost" id="stu-reset" style="padding:6px 12px;font-size:13px;">Reset filters</button>' +
+        '<span style="flex:1"></span>' +
+        '<span id="stu-hint" style="font-size:12px;color:#1e8449;"></span>' +
+        '<button type="button" class="btn btn-ghost" id="stu-pdf" style="padding:6px 12px;font-size:13px;">Download PDF</button>' +
+        '<button type="button" class="btn btn-ghost" id="stu-print" style="padding:6px 12px;font-size:13px;">Print</button>' +
+      '</div>' +
+      '<div id="stu-list"></div>';
+    return true;
+  }
+  function fillCourses() {
+    var sel = document.getElementById("stu-course");
+    if (!sel) return;
+    var keep = sel.value || "all";
+    var seen = {}, list = [];
+    STATE.all.forEach(function (s) {
+      (s.courses || []).forEach(function (c) {
+        if (!seen[c.course_id]) { seen[c.course_id] = 1; list.push(c); }
+      });
+    });
+    list.sort(function (a, b) { return String(a.title).localeCompare(String(b.title)); });
+    sel.innerHTML = '<option value="all">All courses</option>' + list.map(function (c) {
+      return '<option value="' + esc(c.course_id) + '">' + esc(c.title) + '</option>';
+    }).join("");
+    sel.value = seen[keep] ? keep : "all";
+  }
+
+  function state() {
+    return {
+      q: (val("stu-search") || "").trim().toLowerCase(),
+      status: val("stu-status") || "all",
+      course: val("stu-course") || "all",
+      basis: val("stu-basis") || "account",
+      period: val("stu-period") || "all",
+      sort: val("stu-sort") || "name"
+    };
+  }
+  function sorter(mode) {
+    function byName(a, b) { return String(a.s.full_name).localeCompare(String(b.s.full_name)); }
+    function firstTitle(r) {
+      var t = r.courses.map(function (c) { return String(c.title); }).sort();
+      return t.length ? t[0] : null;
+    }
+    return function (a, b) {
+      if (mode === "joined_new" || mode === "joined_old") {
+        var ta = a.when ? a.when.getTime() : null, tb = b.when ? b.when.getTime() : null;
+        if (ta === null && tb === null) return byName(a, b);
+        if (ta === null) return 1;
+        if (tb === null) return -1;
+        if (ta !== tb) return mode === "joined_new" ? tb - ta : ta - tb;
+        return byName(a, b);
+      }
+      if (mode === "course") {
+        var ca = firstTitle(a), cb = firstTitle(b);
+        if (ca === null && cb === null) return byName(a, b);
+        if (ca === null) return 1;
+        if (cb === null) return -1;
+        var c = ca.localeCompare(cb);
+        return c !== 0 ? c : byName(a, b);
+      }
+      return byName(a, b);
+    };
+  }
+  function build(ignoreStatus) {
+    var f = state();
+    var cutoff = null;
+    if (f.period !== "all") {
+      var n = parseInt(f.period, 10), now = new Date();
+      cutoff = new Date(now.getFullYear(), now.getMonth() - (n - 1), 1);
+    }
+    var rows = [];
+    STATE.all.forEach(function (s) {
+      var courses = s.courses || [];
+      if (f.course !== "all") {
+        courses = courses.filter(function (c) { return String(c.course_id) === f.course; });
+        if (courses.length === 0) return;
+      }
+      if (f.q) {
+        var hay = ((s.full_name || "") + " " + (s.phone || "") + " " + (s.email || "")).toLowerCase();
+        if (hay.indexOf(f.q) < 0) return;
+      }
+      var when = null;
+      if (f.basis === "course") {
+        courses.forEach(function (c) {
+          var t = toDate(c.enrolled_at);
+          if (t && (!when || t > when)) when = t;
+        });
+      } else {
+        when = toDate(s.joined_at);
+      }
+      if (cutoff && (!when || when < cutoff)) return;
+      var status = statusOf(courses);
+      if (!ignoreStatus && f.status !== "all" && status !== f.status) return;
+      rows.push({ s: s, courses: courses, status: status, when: when });
+    });
+    rows.sort(sorter(f.sort));
+    return { rows: rows, f: f, cutoff: cutoff };
+  }
+
+  function cardHtml(key, label, n, color, selected) {
+    return '<div class="stu-card" data-status="' + key + '" style="cursor:pointer;padding:10px 12px;border:1px solid ' + (selected ? color : "#d6e0d9") +
+      ';border-left:4px solid ' + color + ';border-radius:10px;' + (selected ? "background:rgba(30,132,73,.08);" : "") +
+      '"><div style="font-size:11px;text-transform:uppercase;color:#4b5d52;">' + label + '</div><div style="font-size:20px;font-weight:bold;">' + n + '</div></div>';
+  }
+  function rowHtml(r) {
+    var s = r.s;
+    var contact = [s.phone, s.email].filter(Boolean).map(function (x) { return esc(x); }).join(" . ");
+    return '<tr><td><div style="font-weight:600;">' + esc(s.full_name) + '</div>' +
+      (contact ? '<div style="font-size:12px;color:#5f6b64;">' + contact + '</div>' : '') +
+      (s.account_active ? '' : '<div style="font-size:11px;color:#b03a2e;">Account disabled</div>') +
+      '</td><td>' + badgeHtml(r.status) + '</td><td>' +
+      (r.courses.length ? r.courses.map(chipHtml).join("") : '<span style="font-size:12px;color:#7a867e;">No course yet</span>') +
+      '</td><td style="white-space:nowrap;">' + (fmtDate(r.when) || '<span style="color:#7a867e;">Unknown</span>') + '</td></tr>';
+  }
+  function render() {
+    var list = document.getElementById("stu-list");
+    if (!list) return;
+    var f = state();
+    var base = build(true).rows;
+    var counts = { active: 0, completed: 0, pending: 0, inactive: 0 };
+    base.forEach(function (r) { counts[r.status]++; });
+    var cards = document.getElementById("stu-cards");
+    if (cards) {
+      cards.innerHTML =
+        cardHtml("all", "All", base.length, "#4b5d52", f.status === "all") +
+        cardHtml("active", "Active", counts.active, STATUS.active.fg, f.status === "active") +
+        cardHtml("completed", "Completed", counts.completed, STATUS.completed.fg, f.status === "completed") +
+        cardHtml("pending", "Pending", counts.pending, STATUS.pending.fg, f.status === "pending") +
+        cardHtml("inactive", "Inactive", counts.inactive, "#8a948d", f.status === "inactive");
+    }
+    var rows = f.status === "all" ? base : base.filter(function (r) { return r.status === f.status; });
+    var countEl = document.getElementById("stu-count");
+    if (countEl) countEl.textContent = rows.length + " of " + STATE.all.length + " members";
+    if (rows.length === 0) {
+      list.innerHTML = '<div class="empty-state">No students match these filters.</div>';
+      return;
+    }
+    list.innerHTML = '<div style="overflow-x:auto;"><table class="simple-table"><thead><tr><th>Student</th><th>Status</th><th>Courses</th><th>' +
+      (f.basis === "course" ? "Joined course" : "Joined") + '</th></tr></thead><tbody>' + rows.map(rowHtml).join("") + '</tbody></table></div>';
+  }
+  function reset() {
+    var d = { "stu-search": "", "stu-status": "all", "stu-course": "all", "stu-basis": "account", "stu-period": "all", "stu-sort": "name" };
+    Object.keys(d).forEach(function (id) { var e = document.getElementById(id); if (e) e.value = d[id]; });
+    render();
+  }
+
+  function load() {
+    if (!buildShell()) return;
+    var now = Date.now();
+    if (STATE.loading || now - STATE.last < 3000) return;
+    STATE.loading = true;
+    STATE.last = now;
+    var list = document.getElementById("stu-list");
+    if (list && !STATE.all.length) list.innerHTML = '<div class="empty-state">Loading students...</div>';
+    fetch(API_BASE + "/api/admin/students-overview", { credentials: "include" })
+      .then(function (res) { if (!res.ok) throw new Error("Request failed"); return res.json(); })
+      .then(function (data) {
+        STATE.all = Array.isArray(data) ? data : [];
+        STATE.loaded = true;
+        STATE.loading = false;
+        fillCourses();
+        render();
+      })
+      .catch(function () {
+        STATE.loaded = true;
+        STATE.loading = false;
+        var l = document.getElementById("stu-list");
+        if (l) l.innerHTML = '<div class="empty-state">Could not load students right now.</div>';
+      });
+  }
+
+  function printHtml(html, title) {
+    var old = document.getElementById("students-report-frame");
+    if (old) old.remove();
+    var f = document.createElement("iframe");
+    f.id = "students-report-frame";
+    f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(f);
+    var w = f.contentWindow;
+    var doc = w.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    var prev = document.title;
+    document.title = title;
+    var done = false;
+    function go() {
+      if (done) return;
+      done = true;
+      w.focus();
+      w.print();
+      document.title = prev;
+    }
+    var img = doc.getElementById("wm");
+    if (img && !img.complete) {
+      img.onload = go;
+      img.onerror = go;
+      setTimeout(go, 3000);
+    } else {
+      setTimeout(go, 150);
+    }
+  }
+  function report(isPdf) {
+    if (!STATE.loaded) { alert("The student list is still loading."); return; }
+    var res = build(false);
+    var rows = res.rows, f = res.f;
+    if (rows.length === 0) { alert("There are no students to print with these filters."); return; }
+    if (isPdf) {
+      var hint = document.getElementById("stu-hint");
+      if (hint) {
+        hint.textContent = "In the print window, set Destination to Save as PDF.";
+        setTimeout(function () { var h = document.getElementById("stu-hint"); if (h) h.textContent = ""; }, 9000);
+      }
+    }
+    var counts = { active: 0, completed: 0, pending: 0, inactive: 0 };
+    rows.forEach(function (r) { counts[r.status]++; });
+    var parts = [];
+    if (f.q) parts.push('Search: "' + f.q + '"');
+    parts.push("Status: " + selText("stu-status"));
+    parts.push("Course: " + selText("stu-course"));
+    var dateLine = "Date: " + (f.basis === "course" ? "joined a course" : "account created") + ", " + selText("stu-period");
+    if (res.cutoff) dateLine += " (since " + fmtDate(res.cutoff) + ")";
+    parts.push(dateLine);
+    parts.push("Sorted by: " + selText("stu-sort"));
+    var logo = new URL("assets/logo-sidebar.png", window.location.href).href;
+    var body = rows.map(function (r, i) {
+      var s = r.s;
+      var courseLines = r.courses.length ? r.courses.map(function (c) {
+        return esc(c.title) + " - " + chipState(c) + (c.enrolled_at ? " (joined " + esc(fmtDate(c.enrolled_at)) + ")" : "");
+      }).join("<br>") : "No course yet";
+      return "<tr><td>" + (i + 1) + "</td><td><b>" + esc(s.full_name) + "</b></td><td>" + esc(s.phone || "-") + "<br>" + esc(s.email || "") +
+        "</td><td class=\"st-" + r.status + "\">" + STATUS[r.status].label + "</td><td>" + courseLines + "</td><td>" + (esc(fmtDate(r.when)) || "Unknown") + "</td></tr>";
+    }).join("");
+    var css = [
+      "@page{size:A4 landscape;margin:14mm}",
+      "*{box-sizing:border-box}",
+      "body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#14231a;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}",
+      "#wm{position:fixed;top:50%;left:50%;width:150mm;transform:translate(-50%,-50%);opacity:.08;z-index:0}",
+      ".page{position:relative;z-index:1}",
+      "h1{margin:0 0 2px;font-size:19px}",
+      ".sub{color:#4b5d52;margin:0 0 4px}",
+      ".sum{margin:8px 0 12px;font-size:12px}",
+      "table{width:100%;border-collapse:collapse}",
+      "thead{display:table-header-group}",
+      "th,td{padding:6px 7px;border-bottom:1px solid #cfdcd3;text-align:left;vertical-align:top}",
+      "th{background:rgba(30,132,73,.14);font-size:10px;text-transform:uppercase;letter-spacing:.03em}",
+      "tr{page-break-inside:avoid}",
+      ".st-active{color:#1e8449;font-weight:bold}",
+      ".st-completed{color:#1f5fae;font-weight:bold}",
+      ".st-pending{color:#9a6700;font-weight:bold}",
+      ".st-inactive{color:#5f6b64;font-weight:bold}"
+    ].join("");
+    var html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Spark Students</title><style>" + css + "</style></head><body>" +
+      "<img id=\"wm\" src=\"" + esc(logo) + "\" alt=\"\">" +
+      "<div class=\"page\">" +
+      "<h1>Spark Technologies - Students report</h1>" +
+      "<p class=\"sub\">Generated " + esc(new Date().toLocaleString("en-GB")) + " &nbsp; | &nbsp; Showing " + rows.length + " of " + STATE.all.length + " members</p>" +
+      "<p class=\"sub\">" + esc(parts.join("  |  ")) + "</p>" +
+      "<p class=\"sum\"><b>Active:</b> " + counts.active + " &nbsp; <b>Completed:</b> " + counts.completed + " &nbsp; <b>Pending:</b> " + counts.pending + " &nbsp; <b>Inactive:</b> " + counts.inactive + "</p>" +
+      "<table><thead><tr><th>#</th><th>Student</th><th>Contact</th><th>Status</th><th>Courses</th><th>" + (f.basis === "course" ? "Joined course" : "Joined") + "</th></tr></thead><tbody>" + body + "</tbody></table>" +
+      "</div></body></html>";
+    var stamp = new Date().toISOString().slice(0, 10);
+    printHtml(html, "Spark-Students-" + stamp);
+  }
+
+  document.addEventListener("input", function (ev) {
+    if (ev.target && ev.target.id === "stu-search") render();
+  });
+  document.addEventListener("change", function (ev) {
+    if (ev.target && ev.target.id && ev.target.id.indexOf("stu-") === 0) render();
+  });
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.admin-tab[data-tab="students"]')) { load(); return; }
+    var card = t.closest(".stu-card");
+    if (card) {
+      var sel = document.getElementById("stu-status");
+      if (sel) { sel.value = card.getAttribute("data-status"); render(); }
+      return;
+    }
+    if (t.closest("#stu-reset")) { reset(); return; }
+    var b = t.closest("#stu-pdf, #stu-print");
+    if (b) report(b.id === "stu-pdf");
+  });
+  setInterval(function () {
+    var r = document.getElementById("students-root");
+    if (!r || STATE.loaded || STATE.loading) return;
+    var p = r.closest(".admin-tab-panel");
+    if (p && p.style.display !== "none" && r.offsetParent !== null) load();
+  }, 1000);
+})();

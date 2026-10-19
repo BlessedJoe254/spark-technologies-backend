@@ -1115,6 +1115,63 @@ app.get("/api/admin/users", async (req, res) => {
   }
 });
 
+// ---------- Students overview: joined date + admin list ----------
+async function ensureUserCreatedAtSchema() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'created_at'"
+    );
+    if (cols.length === 0) {
+      await pool.query("ALTER TABLE users ADD COLUMN created_at TIMESTAMP NULL DEFAULT NULL");
+      await pool.query("UPDATE users u SET u.created_at = (SELECT MIN(e.enrolled_at) FROM enrollments e WHERE e.user_id = u.id) WHERE u.created_at IS NULL");
+      await pool.query("ALTER TABLE users MODIFY created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+    }
+  } catch (err) {
+    console.warn("users.created_at schema setup failed:", err.message);
+  }
+}
+ensureUserCreatedAtSchema();
+
+app.get("/api/admin/students-overview", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    const [students] = await pool.query(
+      "SELECT id, full_name, email, phone, is_active, created_at FROM users WHERE role = 'student' ORDER BY full_name"
+    );
+    const [enr] = await pool.query(
+      "SELECT e.user_id, e.course_id, c.title, c.fee_kes, e.has_paid, e.paid_at, e.completed, e.enrolled_at, i.name AS intake_name " +
+      "FROM enrollments e JOIN courses c ON c.id = e.course_id LEFT JOIN intakes i ON i.id = e.intake_id " +
+      "ORDER BY e.enrolled_at"
+    );
+    const byUser = {};
+    enr.forEach(e => {
+      if (!byUser[e.user_id]) byUser[e.user_id] = [];
+      byUser[e.user_id].push({
+        course_id: e.course_id,
+        title: e.title,
+        free: e.fee_kes === null,
+        paid: !!e.has_paid,
+        paid_at: e.paid_at || null,
+        completed: !!e.completed,
+        enrolled_at: e.enrolled_at || null,
+        intake_name: e.intake_name || null
+      });
+    });
+    res.json(students.map(s => ({
+      id: s.id,
+      full_name: s.full_name,
+      email: s.email,
+      phone: s.phone,
+      account_active: !(s.is_active === 0 || s.is_active === false),
+      joined_at: s.created_at || null,
+      courses: byUser[s.id] || []
+    })));
+  } catch (err) {
+    console.error("Students overview error:", err.message);
+    res.status(500).json({ error: "Could not load students right now." });
+  }
+});
+
 app.get("/api/admin/certificates/:studentId/courses", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     const studentId = Number(req.params.studentId);

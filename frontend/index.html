@@ -35,6 +35,7 @@
         <a class="nav-link admin-nav" id="nav-admin-courses" data-admin-view="courses" href="index.html#courses" style="display:none;"><span class="dot"></span> Manage Courses</a>
         <a class="nav-link admin-nav" id="nav-admin-messages" data-admin-view="messages" href="index.html#messages" style="display:none;"><span class="dot"></span> Messages</a>
         <a class="nav-link admin-nav" id="nav-admin-users" data-admin-view="users" href="index.html#users" style="display:none;"><span class="dot"></span> Manage Users</a>
+        <a class="nav-link admin-nav" id="nav-admin-students" data-admin-view="students" href="index.html#students" style="display:none;"><span class="dot"></span> Students</a>
         <a class="nav-link admin-nav" id="nav-admin-certificates" data-admin-view="certificates" href="index.html#certificates" style="display:none;"><span class="dot"></span> Certificates</a>
         <a class="nav-link admin-nav" id="nav-admin-intakes" data-admin-view="intakes" href="index.html#intakes" style="display:none;"><span class="dot"></span> Intakes</a>
 
@@ -204,6 +205,7 @@
           <button type="button" class="admin-tab" data-tab="messages">Messages</button>
           <button type="button" class="admin-tab" data-tab="users">Users</button>
           <button type="button" class="admin-tab" data-tab="certificates">Certificates</button>
+          <button type="button" class="admin-tab" data-tab="students" style="display:none;">Students</button>
           <button type="button" class="admin-tab" data-tab="intakes" style="display:none;">Intakes</button>
         </div>
 
@@ -279,6 +281,9 @@
           <div id="admin-users-table"></div>
         </div>
 
+        <div class="admin-tab-panel" data-tab-panel="students" style="display:none;">
+          <div id="students-root"></div>
+        </div>
         <div class="admin-tab-panel" data-tab-panel="intakes" style="display:none;">
           <div class="section-title">
             <h2>Intakes</h2>
