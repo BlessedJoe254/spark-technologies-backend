@@ -2205,6 +2205,13 @@ app.post("/api/classes/:id/end", requireLogin, requireAnyRole(["trainer", "admin
   }
 });
 
+app.get("/api/admin/jaas-status", requireLogin, requireRole("admin"), (req, res) => {
+  res.json({
+    JAAS_APP_ID: !!process.env.JAAS_APP_ID,
+    JAAS_KEY_ID: !!process.env.JAAS_KEY_ID,
+    JAAS_PRIVATE_KEY: !!process.env.JAAS_PRIVATE_KEY
+  });
+});
 app.listen(PORT, () => {
   console.log("Spark Technologies server running at http://localhost:" + PORT);
   ensureAdminAccount();
