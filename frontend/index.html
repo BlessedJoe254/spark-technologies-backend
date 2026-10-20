@@ -271,6 +271,12 @@
           <div class="section-title">
             <h2>Manage Users</h2>
           </div>
+          <div class="users-export" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 16px 0;padding:12px 14px;border:1px solid rgba(128,128,128,.3);border-radius:12px;">
+            <span style="font-weight:600;font-size:14px;margin-right:auto;">Download PDF report</span>
+            <a class="btn btn-ghost" href="/api/admin/reports/trainers.pdf" download style="padding:8px 14px;font-size:13px;">Trainers</a>
+            <a class="btn btn-ghost" href="/api/admin/reports/students.pdf" download style="padding:8px 14px;font-size:13px;">Students</a>
+            <a class="btn btn-primary" href="/api/admin/reports/all-users.pdf" download style="padding:8px 14px;font-size:13px;">All users</a>
+          </div>
           <div class="user-role-toggle" id="user-role-toggle">
             <div class="role-toggle-slider" id="role-toggle-slider"></div>
             <button type="button" class="role-toggle-btn active" data-role="student">

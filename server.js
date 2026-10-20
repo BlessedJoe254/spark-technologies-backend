@@ -2313,6 +2313,159 @@ app.post("/api/classes/:id/cancel", requireLogin, requireAnyRole(["trainer", "ad
   }
 });
 
+// ---------- Admin PDF reports (trainers / students / all) ----------
+const PDFDocument = require("pdfkit");
+const PDF_BRAND = { ink: "#0f1c16", green: "#1f8a5b", light: "#eef5f1", line: "#d5e2db", text: "#1b2a22", muted: "#6b7c72", red: "#b3261e" };
+
+function pdfDate(v) {
+  if (!v) return "-";
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? "-" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function buildUsersPdf(res, filename, title, adminName, sections) {
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 36, bufferPages: true, info: { Title: title, Author: "Spark Technologies" } });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", 'attachment; filename="' + filename + '"');
+  doc.pipe(res);
+
+  const L = 36, PW = doc.page.width, PH = doc.page.height, W = PW - 72, bottom = PH - 50;
+  const today = pdfDate(new Date());
+
+  doc.rect(0, 0, PW, 84).fill(PDF_BRAND.ink);
+  try {
+    const logo = path.join(frontendPath, "assets", "logo-sidebar.png");
+    if (fs.existsSync(logo)) doc.image(logo, L, 18, { fit: [150, 48] });
+  } catch (e) {}
+  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(20).text(title, L, 24, { width: W, align: "right", lineBreak: false });
+  doc.fillColor("#9DBBAB").font("Helvetica").fontSize(9).text("Generated " + today + " by " + (adminName || "Admin"), L, 54, { width: W, align: "right", lineBreak: false });
+  doc.rect(0, 84, PW, 4).fill(PDF_BRAND.green);
+
+  let y = 110;
+
+  function drawHead(cols) {
+    doc.rect(L, y, W, 24).fill(PDF_BRAND.green);
+    let x = L;
+    doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(8.5);
+    cols.forEach(c => { doc.text(c.label.toUpperCase(), x + 6, y + 8, { width: c.w - 12, lineBreak: false }); x += c.w; });
+    y += 24;
+  }
+
+  sections.forEach((sec, si) => {
+    if (y + 90 > bottom) { doc.addPage(); y = 36; }
+    doc.fillColor(PDF_BRAND.ink).font("Helvetica-Bold").fontSize(14).text(sec.heading, L, y, { width: W, lineBreak: false });
+    y += 20;
+    doc.fillColor(PDF_BRAND.muted).font("Helvetica").fontSize(9).text(sec.summary, L, y, { width: W, lineBreak: false });
+    y += 20;
+
+    if (!sec.rows.length) {
+      doc.fillColor(PDF_BRAND.muted).font("Helvetica-Oblique").fontSize(10).text("No records.", L, y, { lineBreak: false });
+      y += 30;
+      return;
+    }
+
+    drawHead(sec.cols);
+    sec.rows.forEach((r, i) => {
+      doc.font("Helvetica").fontSize(9);
+      const cells = sec.cols.map(c => { const v = c.get(r, i); return v == null || v === "" ? "-" : String(v); });
+      let h = 0;
+      cells.forEach((t, k) => { h = Math.max(h, doc.heightOfString(t, { width: sec.cols[k].w - 12 })); });
+      h = Math.max(24, h + 12);
+      if (y + h > bottom) { doc.addPage(); y = 36; drawHead(sec.cols); }
+      if (i % 2 === 1) doc.rect(L, y, W, h).fill(PDF_BRAND.light);
+      let x = L;
+      cells.forEach((t, k) => {
+        const col = sec.cols[k];
+        doc.fillColor(col.color ? col.color(r) : PDF_BRAND.text).font(col.bold ? "Helvetica-Bold" : "Helvetica").fontSize(9)
+           .text(t, x + 6, y + 6, { width: col.w - 12 });
+        x += col.w;
+      });
+      doc.moveTo(L, y + h).lineTo(L + W, y + h).lineWidth(0.5).strokeColor(PDF_BRAND.line).stroke();
+      y += h;
+    });
+    y += 26;
+  });
+
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    doc.page.margins.bottom = 0;
+    doc.moveTo(L, PH - 38).lineTo(L + W, PH - 38).lineWidth(0.5).strokeColor(PDF_BRAND.line).stroke();
+    doc.fillColor(PDF_BRAND.muted).font("Helvetica").fontSize(8)
+       .text("Spark Technologies - Confidential. Contains personal data.", L, PH - 28, { width: W / 2, lineBreak: false });
+    doc.text("Page " + (i + 1) + " of " + range.count, L + W / 2, PH - 28, { width: W / 2, align: "right", lineBreak: false });
+  }
+  doc.end();
+}
+
+const PDF_TRAINER_COLS = [
+  { label: "#", w: 28, get: (r, i) => i + 1 },
+  { label: "Name", w: 130, bold: true, get: r => r.full_name },
+  { label: "Email", w: 160, get: r => r.email },
+  { label: "Phone", w: 90, get: r => r.phone },
+  { label: "Status", w: 62, get: r => (r.is_active === 0 || r.is_active === false) ? "Suspended" : "Active", color: r => (r.is_active === 0 || r.is_active === false) ? PDF_BRAND.red : PDF_BRAND.green },
+  { label: "Joined", w: 74, get: r => pdfDate(r.created_at) },
+  { label: "Courses assigned", w: 170, get: r => r.courses },
+  { label: "Students", w: 56, get: r => r.students }
+];
+const PDF_STUDENT_COLS = [
+  { label: "#", w: 28, get: (r, i) => i + 1 },
+  { label: "Name", w: 130, bold: true, get: r => r.full_name },
+  { label: "Email", w: 160, get: r => r.email },
+  { label: "Phone", w: 90, get: r => r.phone },
+  { label: "Status", w: 62, get: r => (r.is_active === 0 || r.is_active === false) ? "Suspended" : "Active", color: r => (r.is_active === 0 || r.is_active === false) ? PDF_BRAND.red : PDF_BRAND.green },
+  { label: "Joined", w: 74, get: r => pdfDate(r.created_at) },
+  { label: "Courses enrolled (payment)", w: 226, get: r => r.courses }
+];
+
+async function pdfTrainerSection() {
+  const [rows] = await pool.query(
+    "SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at, " +
+    "(SELECT GROUP_CONCAT(c.title ORDER BY c.title SEPARATOR ', ') FROM courses c WHERE c.trainer_id = u.id) AS courses, " +
+    "(SELECT COUNT(*) FROM enrollments e JOIN courses c ON c.id = e.course_id WHERE c.trainer_id = u.id) AS students " +
+    "FROM users u WHERE u.role = 'trainer' ORDER BY u.full_name"
+  );
+  const active = rows.filter(r => !(r.is_active === 0 || r.is_active === false)).length;
+  return { heading: "Trainers", summary: rows.length + " trainer" + (rows.length === 1 ? "" : "s") + " | " + active + " active", cols: PDF_TRAINER_COLS, rows };
+}
+async function pdfStudentSection() {
+  const [rows] = await pool.query(
+    "SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at, " +
+    "(SELECT GROUP_CONCAT(CONCAT(c.title, CASE WHEN c.fee_kes IS NULL THEN ' (free)' WHEN e.has_paid = 1 THEN ' (paid)' ELSE ' (unpaid)' END) ORDER BY c.title SEPARATOR ', ') " +
+    "FROM enrollments e JOIN courses c ON c.id = e.course_id WHERE e.user_id = u.id) AS courses " +
+    "FROM users u WHERE u.role = 'student' ORDER BY u.full_name"
+  );
+  const active = rows.filter(r => !(r.is_active === 0 || r.is_active === false)).length;
+  return { heading: "Students", summary: rows.length + " student" + (rows.length === 1 ? "" : "s") + " | " + active + " active", cols: PDF_STUDENT_COLS, rows };
+}
+
+function pdfStamp() { return new Date().toISOString().slice(0, 10); }
+
+app.get("/api/admin/reports/trainers.pdf", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    buildUsersPdf(res, "spark-trainers-" + pdfStamp() + ".pdf", "Trainers Report", req.session.user.full_name, [await pdfTrainerSection()]);
+  } catch (err) {
+    console.error("Trainers PDF error:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Could not create the PDF right now." });
+  }
+});
+app.get("/api/admin/reports/students.pdf", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    buildUsersPdf(res, "spark-students-" + pdfStamp() + ".pdf", "Students Report", req.session.user.full_name, [await pdfStudentSection()]);
+  } catch (err) {
+    console.error("Students PDF error:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Could not create the PDF right now." });
+  }
+});
+app.get("/api/admin/reports/all-users.pdf", requireLogin, requireRole("admin"), async (req, res) => {
+  try {
+    buildUsersPdf(res, "spark-all-users-" + pdfStamp() + ".pdf", "All Users Report", req.session.user.full_name, [await pdfTrainerSection(), await pdfStudentSection()]);
+  } catch (err) {
+    console.error("All users PDF error:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Could not create the PDF right now." });
+  }
+});
+
 app.listen(PORT, () => {
   console.log("Spark Technologies server running at http://localhost:" + PORT);
   ensureAdminAccount();
