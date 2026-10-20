@@ -101,7 +101,7 @@
         list.innerHTML = '<p class="lc-meta">' + (mod ? "No classes yet. Create one above." : "No live classes for your courses yet.") + "</p>";
         return;
       }
-      list.innerHTML = d.classes.slice().sort(order).map(function (c) {
+      list.innerHTML = d.classes.filter(function (c) { return c.status !== "cancelled"; }).sort(order).map(function (c) {
         var when = new Date(c.scheduled_at);
         var whenTxt = isNaN(when.getTime()) ? "" : when.toLocaleString();
         var actions = "";

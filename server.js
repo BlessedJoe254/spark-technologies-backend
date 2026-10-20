@@ -2163,7 +2163,7 @@ app.post("/api/classes/:id/join", requireLogin, async (req, res) => {
     }
     const [[cls]] = await pool.query("SELECT * FROM live_classes WHERE id = ?", [req.params.id]);
     if (!cls) return res.status(404).json({ error: "Class not found." });
-    if (cls.status === "ended") return res.status(410).json({ error: "This class has ended." });
+    if (cls.status === "ended" || cls.status === "cancelled") return res.status(410).json({ error: "This class is no longer available." });
 
     let isMod = false;
     if (u.role === "admin") isMod = true;
@@ -2212,6 +2212,107 @@ app.get("/api/admin/jaas-status", requireLogin, requireRole("admin"), (req, res)
     JAAS_PRIVATE_KEY: !!process.env.JAAS_PRIVATE_KEY
   });
 });
+// ---------- Live classes v2 (scheduling from the course homepage) ----------
+async function ensureLiveClassNotes() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'live_classes' AND COLUMN_NAME = 'notes'"
+    );
+    if (cols.length === 0) await pool.query("ALTER TABLE live_classes ADD COLUMN notes VARCHAR(500) NULL");
+  } catch (err) {
+    console.warn("live_classes notes setup failed:", err.message);
+  }
+}
+ensureLiveClassesTable().then(ensureLiveClassNotes);
+
+app.get("/api/course-classes", requireLogin, async (req, res) => {
+  try {
+    const u = req.session.user;
+    const cols = "lc.id, lc.course_id, lc.title, lc.scheduled_at, lc.status, lc.notes ";
+    let rows = [];
+    if (u.role === "trainer") {
+      [rows] = await pool.query(
+        "SELECT " + cols + "FROM live_classes lc JOIN courses c ON c.id = lc.course_id " +
+        "WHERE c.trainer_id = ? AND lc.status <> 'cancelled' ORDER BY lc.scheduled_at ASC LIMIT 300", [u.id]);
+    } else if (u.role === "admin") {
+      [rows] = await pool.query(
+        "SELECT " + cols + "FROM live_classes lc WHERE lc.status <> 'cancelled' ORDER BY lc.scheduled_at ASC LIMIT 300");
+    } else {
+      [rows] = await pool.query(
+        "SELECT " + cols + "FROM live_classes lc " +
+        "JOIN courses c ON c.id = lc.course_id " +
+        "JOIN enrollments e ON e.course_id = lc.course_id " +
+        "WHERE e.user_id = ? AND (e.has_paid = 1 OR c.fee_kes IS NULL) AND lc.status <> 'cancelled' " +
+        "ORDER BY lc.scheduled_at ASC LIMIT 300", [u.id]);
+    }
+    res.json({ role: u.role, classes: rows });
+  } catch (err) {
+    console.error("Course classes error:", err.message);
+    res.status(500).json({ error: "Could not load classes right now." });
+  }
+});
+
+app.post("/api/course-classes/create", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const u = req.session.user;
+    const { course_id, title, scheduled_at, notes } = req.body;
+    if (!course_id || !title || !String(title).trim()) return res.status(400).json({ error: "Course and title are required." });
+    const when = new Date(scheduled_at);
+    if (isNaN(when.getTime())) return res.status(400).json({ error: "Enter a valid date and time." });
+    if (when.getTime() < Date.now() - 60 * 60 * 1000) return res.status(400).json({ error: "Pick a date and time in the future." });
+    const [[course]] = await pool.query("SELECT id, trainer_id FROM courses WHERE id = ?", [course_id]);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+    if (u.role === "trainer" && course.trainer_id !== u.id) return res.status(403).json({ error: "This is not your course." });
+    const room = "spark-" + crypto.randomBytes(8).toString("hex");
+    await pool.query(
+      "INSERT INTO live_classes (course_id, trainer_id, title, scheduled_at, room, notes) VALUES (?, ?, ?, ?, ?, ?)",
+      [course.id, course.trainer_id || u.id, String(title).trim().slice(0, 200), when.toISOString(), room, notes ? String(notes).trim().slice(0, 500) : null]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Schedule class error:", err.message);
+    res.status(500).json({ error: "Could not schedule the class right now." });
+  }
+});
+
+app.post("/api/classes/:id/update", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const u = req.session.user;
+    const { title, scheduled_at, notes } = req.body;
+    const [[cls]] = await pool.query("SELECT id, trainer_id, status FROM live_classes WHERE id = ?", [req.params.id]);
+    if (!cls) return res.status(404).json({ error: "Class not found." });
+    if (u.role === "trainer" && cls.trainer_id !== u.id) return res.status(403).json({ error: "This is not your class." });
+    if (cls.status === "ended" || cls.status === "cancelled") return res.status(409).json({ error: "This class can no longer be edited." });
+    if (!title || !String(title).trim()) return res.status(400).json({ error: "Title is required." });
+    const when = new Date(scheduled_at);
+    if (isNaN(when.getTime())) return res.status(400).json({ error: "Enter a valid date and time." });
+    await pool.query(
+      "UPDATE live_classes SET title = ?, scheduled_at = ?, notes = ? WHERE id = ?",
+      [String(title).trim().slice(0, 200), when.toISOString(), notes ? String(notes).trim().slice(0, 500) : null, cls.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Update class error:", err.message);
+    res.status(500).json({ error: "Could not update the class right now." });
+  }
+});
+
+app.post("/api/classes/:id/cancel", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const u = req.session.user;
+    const [[cls]] = await pool.query("SELECT id, trainer_id, status FROM live_classes WHERE id = ?", [req.params.id]);
+    if (!cls) return res.status(404).json({ error: "Class not found." });
+    if (u.role === "trainer" && cls.trainer_id !== u.id) return res.status(403).json({ error: "This is not your class." });
+    if (cls.status !== "scheduled") return res.status(409).json({ error: "Only upcoming classes can be cancelled." });
+    await pool.query("UPDATE live_classes SET status = 'cancelled' WHERE id = ?", [cls.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Cancel class error:", err.message);
+    res.status(500).json({ error: "Could not cancel the class right now." });
+  }
+});
+
 app.listen(PORT, () => {
   console.log("Spark Technologies server running at http://localhost:" + PORT);
   ensureAdminAccount();
