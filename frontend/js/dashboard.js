@@ -259,7 +259,7 @@ function attendanceGraphHtml(sessions) {
 }
 
 function scoresHtml(scores) {
-  const row = (label, s) => "<div class=\"score-chip\"><span>" + label + "</span><strong>" + (s ? (s.score + "/" + s.max_score) : "—") + "</strong></div>";
+  const row = (label, s) => "<div class=\"score-chip\"><span>" + label + "</span><strong>" + (s ? (s.score + "/" + s.max_score) : "ï¿½") + "</strong></div>";
   return "<div class=\"scores-row\">" + row("CAT 1", scores.cat1) + row("CAT 2", scores.cat2) + row("Final", scores.final) + "</div>";
 }
 
@@ -373,6 +373,7 @@ function studentCourseBlockHtml(c) {
   if (c.unlocked) {
     bodyHtml =
       "<div class=\"unlocked-content\">" +
+        "<div><div class=\"section-subhead\">Live classes</div><div class=\"lc-slot lc-student\" data-course-id=\"" + c.id + "\"></div></div>" +
         "<div><div class=\"section-subhead\">Class links</div>" + classLinksHtml(c.class_links) + "</div>" +
         "<div><div class=\"section-subhead\">Attendance</div>" + attendanceBarHtml(c.attendance.attended, c.attendance.total) + attendanceGraphHtml(c.attendance.sessions) + "</div>" +
         "<div><div class=\"section-subhead\">Assessments</div>" + scoresHtml(c.scores) + "</div>" +
@@ -478,7 +479,7 @@ function populateTrainerRecipientSelect(groups) {
   if (!select) return;
   let html = "<option value=\"\">Select a student or course...</option>";
   groups.forEach(g => {
-    html += "<option value=\"course:" + g.course_id + "\">All students — " + escapeHtml(g.course_title) + "</option>";
+    html += "<option value=\"course:" + g.course_id + "\">All students ï¿½ " + escapeHtml(g.course_title) + "</option>";
     g.students.forEach(s => {
       html += "<option value=\"student:" + s.id + "\">" + escapeHtml(s.full_name) + " (" + escapeHtml(g.course_title) + ")</option>";
     });
@@ -493,12 +494,8 @@ function trainerGroupHtml(g) {
 
       "<div class=\"section-subhead\">Class links</div>" +
       classLinksHtml(g.class_links) +
-      "<form class=\"add-link-form\" data-course-id=\"" + g.course_id + "\" style=\"margin:8px 0 14px;display:flex;gap:8px;flex-wrap:wrap;\">" +
-        "<input type=\"text\" class=\"link-title-input\" placeholder=\"Link title (e.g. Week 3 recording)\" required style=\"flex:1;min-width:160px;\">" +
-        "<input type=\"url\" class=\"link-url-input\" placeholder=\"https://...\" required style=\"flex:1;min-width:160px;\">" +
-        "<button type=\"submit\" class=\"btn btn-ghost\" style=\"padding:8px 14px;font-size:13px;\">Add link</button>" +
-      "</form>" +
 
+      "<div class=\"section-subhead\">Live classes</div><div class=\"lc-slot\" data-course-id=\"" + g.course_id + "\"></div>" +
       "<div class=\"section-subhead\">Attendance</div>" +
       "<button class=\"btn btn-ghost record-class-btn\" data-course-id=\"" + g.course_id + "\" style=\"padding:8px 14px;font-size:13px;margin-bottom:10px;\"" + (g.sessions_count >= 10 ? " disabled" : "") + ">" +
         (g.sessions_count >= 10 ? "Maximum of 10 classes reached" : "Record today's class") +
@@ -526,7 +523,7 @@ function trainerGroupHtml(g) {
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"cat1\" value=\"" + (s.scores.cat1 ? s.scores.cat1.score : "") + "\" style=\"width:55px;\"></td>" +
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"cat2\" value=\"" + (s.scores.cat2 ? s.scores.cat2.score : "") + "\" style=\"width:55px;\"></td>" +
             "<td><input type=\"number\" min=\"0\" max=\"100\" class=\"score-input\" data-type=\"final\" value=\"" + (s.scores.final ? s.scores.final.score : "") + "\" style=\"width:55px;\"></td>" +
-            "<td class=\"cat-files-cell\" data-student-id=\"" + s.id + "\">—</td>" +
+            "<td class=\"cat-files-cell\" data-student-id=\"" + s.id + "\">ï¿½</td>" +
             "<td>" + completeCellHtml(g.course_id, s.id, s.completed) + "</td>" +
             "<td><button class=\"btn btn-ghost save-scores-btn\" style=\"padding:5px 10px;font-size:12px;\">Save</button></td>" +
           "</tr>"
@@ -570,7 +567,7 @@ async function handleRecordClass(e) {
 
     checklist.style.display = "block";
     checklist.innerHTML =
-      "<div class=\"section-subhead\">Mark attendance — Class " + data.session.session_number + " of 10</div>" +
+      "<div class=\"section-subhead\">Mark attendance ï¿½ Class " + data.session.session_number + " of 10</div>" +
       (students.length === 0 ? "<div class=\"empty-state\">No students enrolled to mark.</div>" :
         "<div class=\"attendance-mark-list\">" +
           students.map(s => "<label class=\"attendance-mark-item\"><input type=\"checkbox\" class=\"present-checkbox\" data-student-id=\"" + s.id + "\"> " + escapeHtml(s.name) + "</label>").join("") +
@@ -585,7 +582,7 @@ async function handleRecordClass(e) {
           const res2 = await fetch(API_BASE + "/api/trainer/attendance", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ session_id: data.session.id, records }) });
           if (!res2.ok) throw new Error("Save failed");
           loadTrainerStudents();
-        } catch (err) { saveBtn.textContent = "Error — try again"; saveBtn.disabled = false; }
+        } catch (err) { saveBtn.textContent = "Error ï¿½ try again"; saveBtn.disabled = false; }
       });
     }
 
@@ -854,9 +851,9 @@ async function loadAdminOverview() {
                     c.students.map(s => (
                       "<tr><td>" + escapeHtml(s.full_name) + "</td><td>" + escapeHtml(s.phone || "-") + "</td><td>" + statusBadge(s.has_paid, 0) + "</td>" +
                       "<td style=\"min-width:110px;\">" + attendanceBarHtml(s.attended, 10) + "</td>" +
-                      "<td>" + (s.scores.cat1 ? s.scores.cat1.score : "—") + "</td>" +
-                      "<td>" + (s.scores.cat2 ? s.scores.cat2.score : "—") + "</td>" +
-                      "<td>" + (s.scores.final ? s.scores.final.score : "—") + "</td></tr>"
+                      "<td>" + (s.scores.cat1 ? s.scores.cat1.score : "ï¿½") + "</td>" +
+                      "<td>" + (s.scores.cat2 ? s.scores.cat2.score : "ï¿½") + "</td>" +
+                      "<td>" + (s.scores.final ? s.scores.final.score : "ï¿½") + "</td></tr>"
                     )).join("") + "</tbody></table>") +
                 "</div>"
               )).join("")) +
@@ -2167,3 +2164,193 @@ function fitCertText() {
     }
   }
 }
+
+/* live-classes-v2 */
+(function () {
+  var BASE = (typeof API_BASE !== "undefined" && API_BASE) ? API_BASE : "";
+  var EARLY_MS = 30 * 60 * 1000;
+  var classes = [];
+
+  var st = document.createElement("style");
+  st.textContent =
+    ".lcx-form{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px;align-items:center;}" +
+    ".lcx-form input{padding:9px 11px;border:1px solid rgba(128,128,128,.4);border-radius:10px;font:inherit;background:transparent;color:inherit;min-width:0;}" +
+    ".lcx-form .lcx-title{flex:2 1 220px;} .lcx-form .lcx-notes{flex:2 1 220px;} .lcx-form .lcx-date,.lcx-form .lcx-time{flex:1 1 130px;}" +
+    ".lcx-form .btn{padding:9px 16px;font-size:13px;}" +
+    ".lcx-msg{flex:1 1 100%;font-size:13px;min-height:16px;}" +
+    ".lcx-item{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;border:1px solid rgba(128,128,128,.3);border-radius:12px;padding:12px 14px;margin:0 0 8px;}" +
+    ".lcx-title-row{font-weight:600;} .lcx-meta{font-size:13px;opacity:.75;margin-top:2px;}" +
+    ".lcx-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;margin-left:8px;vertical-align:middle;}" +
+    ".lcx-badge.live{background:#e0261b;color:#fff;} .lcx-badge.scheduled{background:rgba(31,138,91,.18);color:#1f8a5b;} .lcx-badge.ended{background:rgba(128,128,128,.2);}" +
+    ".lcx-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;} .lcx-actions .btn{padding:8px 14px;font-size:13px;}" +
+    ".lcx-link{background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;font-size:13px;padding:4px;opacity:.8;} .lcx-link.danger{color:#e0261b;opacity:1;}" +
+    ".lcx-empty{font-size:13px;opacity:.7;margin:6px 0 10px;} .lcx-past summary{cursor:pointer;font-size:13px;opacity:.8;margin:6px 0;}";
+  document.head.appendChild(st);
+
+  function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function whenTxt(c) {
+    var d = new Date(c.scheduled_at);
+    return isNaN(d.getTime()) ? "" : d.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+  function post(url, body) {
+    return fetch(BASE + url, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body || {}) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); });
+  }
+
+  function init(slot) {
+    slot.dataset.lcInit = "1";
+    var html = "";
+    if (!slot.classList.contains("lc-student")) {
+      html += '<form class="lcx-form">' +
+        '<input class="lcx-title" type="text" placeholder="Class title, e.g. Week 3: Databases" maxlength="200" required>' +
+        '<input class="lcx-date" type="date" required>' +
+        '<input class="lcx-time" type="time" required>' +
+        '<input class="lcx-notes" type="text" placeholder="Notes for students (optional)" maxlength="500">' +
+        '<button type="submit" class="btn btn-primary lcx-save">Schedule class</button>' +
+        '<button type="button" class="btn btn-ghost lcx-stop-edit" style="display:none;">Cancel edit</button>' +
+        '<div class="lcx-msg"></div></form>';
+    }
+    html += '<div class="lcx-list"></div>';
+    slot.innerHTML = html;
+  }
+
+  function trainerItem(c, now) {
+    var t = new Date(c.scheduled_at).getTime();
+    var badge = '<span class="lcx-badge ' + esc(c.status) + '">' + (c.status === "live" ? "Live now" : c.status === "ended" ? "Ended" : "Upcoming") + "</span>";
+    var meta = esc(whenTxt(c)) + (c.notes ? " &middot; " + esc(c.notes) : "");
+    var act = "";
+    if (c.status === "live") {
+      act = '<a class="btn btn-primary" href="class-room.html?id=' + c.id + '">Rejoin</a>' +
+            '<button type="button" class="lcx-link danger" data-lcx="end" data-id="' + c.id + '">End</button>';
+    } else if (c.status === "scheduled") {
+      act = (now >= t - EARLY_MS)
+        ? '<a class="btn btn-primary" href="class-room.html?id=' + c.id + '">Start class</a>'
+        : '<span class="lcx-meta">Start opens 30 min before</span>';
+      act += '<button type="button" class="lcx-link" data-lcx="edit" data-id="' + c.id + '">Edit</button>' +
+             '<button type="button" class="lcx-link danger" data-lcx="cancel" data-id="' + c.id + '">Cancel</button>';
+    }
+    return '<div class="lcx-item"><div><div class="lcx-title-row">' + esc(c.title) + badge + '</div><div class="lcx-meta">' + meta + '</div></div><div class="lcx-actions">' + act + "</div></div>";
+  }
+
+  function studentItem(c) {
+    var badge = '<span class="lcx-badge ' + esc(c.status) + '">' + (c.status === "live" ? "Live now" : "Upcoming") + "</span>";
+    var meta = esc(whenTxt(c)) + (c.notes ? " &middot; " + esc(c.notes) : "");
+    var act = c.status === "live"
+      ? '<a class="btn btn-primary" href="class-room.html?id=' + c.id + '">Join class</a>'
+      : '<span class="lcx-meta">Join opens when your trainer starts</span>';
+    return '<div class="lcx-item"><div><div class="lcx-title-row">' + esc(c.title) + badge + '</div><div class="lcx-meta">' + meta + '</div></div><div class="lcx-actions">' + act + "</div></div>";
+  }
+
+  function paint() {
+    var now = Date.now();
+    document.querySelectorAll(".lc-slot").forEach(function (slot) {
+      var list = slot.querySelector(".lcx-list");
+      if (!list) return;
+      var cid = Number(slot.dataset.courseId);
+      var mine = classes.filter(function (c) { return Number(c.course_id) === cid; });
+      var student = slot.classList.contains("lc-student");
+      var upcoming = mine.filter(function (c) { return c.status === "live" || c.status === "scheduled"; });
+      var past = mine.filter(function (c) { return c.status === "ended"; }).reverse().slice(0, 5);
+      var html = "";
+      if (student) upcoming = upcoming.slice(0, 5);
+      if (!upcoming.length) html += '<div class="lcx-empty">' + (student ? "No classes scheduled yet." : "No upcoming classes. Schedule one above.") + "</div>";
+      else html += upcoming.map(function (c) { return student ? studentItem(c) : trainerItem(c, now); }).join("");
+      if (!student && past.length) {
+        html += '<details class="lcx-past"><summary>Past classes (' + past.length + ')</summary>' + past.map(function (c) { return trainerItem(c, now); }).join("") + "</details>";
+      }
+      list.innerHTML = html;
+    });
+  }
+
+  function load() {
+    if (!document.querySelector(".lc-slot")) return;
+    fetch(BASE + "/api/course-classes", { credentials: "include" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d) { classes = d.classes || []; paint(); } })
+      .catch(function () {});
+  }
+
+  function scan() {
+    var fresh = false;
+    document.querySelectorAll(".lc-slot").forEach(function (s) { if (!s.dataset.lcInit) { init(s); fresh = true; } });
+    if (fresh) { paint(); load(); }
+  }
+
+  function setMsg(form, text, bad) {
+    var m = form.querySelector(".lcx-msg");
+    m.style.color = bad ? "#e0261b" : "#1f8a5b";
+    m.textContent = text;
+  }
+  function resetForm(form) {
+    form.reset();
+    delete form.dataset.editId;
+    form.querySelector(".lcx-save").textContent = "Schedule class";
+    form.querySelector(".lcx-stop-edit").style.display = "none";
+  }
+
+  document.addEventListener("submit", function (e) {
+    var f = e.target;
+    if (!f.classList || !f.classList.contains("lcx-form")) return;
+    e.preventDefault();
+    var slot = f.closest(".lc-slot");
+    var title = f.querySelector(".lcx-title").value.trim();
+    var date = f.querySelector(".lcx-date").value;
+    var time = f.querySelector(".lcx-time").value;
+    var notes = f.querySelector(".lcx-notes").value.trim();
+    var dt = new Date(date + "T" + time);
+    if (!title || isNaN(dt.getTime())) { setMsg(f, "Enter a title, date and start time.", true); return; }
+    var btn = f.querySelector(".lcx-save");
+    btn.disabled = true;
+    var editId = f.dataset.editId;
+    var p = editId
+      ? post("/api/classes/" + editId + "/update", { title: title, scheduled_at: dt.toISOString(), notes: notes })
+      : post("/api/course-classes/create", { course_id: Number(slot.dataset.courseId), title: title, scheduled_at: dt.toISOString(), notes: notes });
+    p.then(function (res) {
+      if (!res.ok) { setMsg(f, res.d.error || "Could not save the class.", true); return; }
+      resetForm(f);
+      setMsg(f, editId ? "Class updated." : "Class scheduled.", false);
+      load();
+    }).catch(function () { setMsg(f, "Could not reach the server.", true); })
+      .then(function () { btn.disabled = false; });
+  });
+
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.classList) return;
+    if (t.classList.contains("lcx-stop-edit")) { resetForm(t.closest(".lcx-form")); return; }
+    var act = t.getAttribute && t.getAttribute("data-lcx");
+    if (!act) return;
+    var id = t.getAttribute("data-id");
+    var slot = t.closest(".lc-slot");
+    if (act === "edit") {
+      var c = classes.filter(function (x) { return String(x.id) === String(id); })[0];
+      if (!c || !slot) return;
+      var f = slot.querySelector(".lcx-form"), d = new Date(c.scheduled_at);
+      f.querySelector(".lcx-title").value = c.title;
+      f.querySelector(".lcx-date").value = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+      f.querySelector(".lcx-time").value = pad(d.getHours()) + ":" + pad(d.getMinutes());
+      f.querySelector(".lcx-notes").value = c.notes || "";
+      f.dataset.editId = id;
+      f.querySelector(".lcx-save").textContent = "Save changes";
+      f.querySelector(".lcx-stop-edit").style.display = "";
+      f.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (act === "cancel") {
+      if (!confirm("Cancel this class? Students will no longer see it.")) return;
+      post("/api/classes/" + id + "/cancel").then(function (r) { if (!r.ok) alert(r.d.error || "Could not cancel."); load(); });
+    } else if (act === "end") {
+      if (!confirm("End this class? Students will no longer be able to join.")) return;
+      post("/api/classes/" + id + "/end").then(function (r) { if (!r.ok) alert(r.d.error || "Could not end."); load(); });
+    }
+  });
+
+  function start() {
+    ["trainer-course-groups", "student-course-list"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) new MutationObserver(scan).observe(el, { childList: true });
+    });
+    scan();
+    setInterval(load, 30000);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+})();
