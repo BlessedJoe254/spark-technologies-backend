@@ -2078,7 +2078,7 @@ function signJaasToken(user, room, isModerator) {
     exp: now + 60 * 60 * 4,
     sub: appId,
     room: room,
-    context: {
+    context: { features: { recording: isModerator ? "true" : "false" },
       user: {
         id: String(user.id),
         name: user.full_name,
