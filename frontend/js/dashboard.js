@@ -374,7 +374,6 @@ function studentCourseBlockHtml(c) {
     bodyHtml =
       "<div class=\"unlocked-content\">" +
         "<div><div class=\"section-subhead\">Live classes</div><div class=\"lc-slot lc-student\" data-course-id=\"" + c.id + "\"></div></div>" +
-        "<div><div class=\"section-subhead\">Class links</div>" + classLinksHtml(c.class_links) + "</div>" +
         "<div><div class=\"section-subhead\">Attendance</div>" + attendanceBarHtml(c.attendance.attended, c.attendance.total) + attendanceGraphHtml(c.attendance.sessions) + "</div>" +
         "<div><div class=\"section-subhead\">Assessments</div>" + scoresHtml(c.scores) + "</div>" +
         "<div><div class=\"section-subhead\">CAT Submissions</div>" + catUploadHtml(c) + "</div>" +
@@ -492,8 +491,6 @@ function trainerGroupHtml(g) {
     "<div class=\"trainer-group\" data-course-id=\"" + g.course_id + "\">" +
       "<div class=\"trainer-group-head\">" + escapeHtml(g.course_title) + " <span class=\"stat-trend\">" + g.students.length + " student" + (g.students.length === 1 ? "" : "s") + " . " + g.sessions_count + "/10 classes recorded</span></div>" +
 
-      "<div class=\"section-subhead\">Class links</div>" +
-      classLinksHtml(g.class_links) +
 
       "<div class=\"section-subhead\">Live classes</div><div class=\"lc-slot\" data-course-id=\"" + g.course_id + "\"></div>" +
       "<div class=\"section-subhead\">Attendance</div>" +
@@ -845,7 +842,6 @@ async function loadAdminOverview() {
               t.courses.map(c => (
                 "<div style=\"margin-bottom:18px;\">" +
                   "<div class=\"cli-title\" style=\"margin-bottom:6px;\">" + escapeHtml(c.course_title) + "</div>" +
-                  "<div class=\"section-subhead\">Class links</div>" + classLinksHtml(c.class_links) +
                   (c.students.length === 0 ? "<div class=\"empty-state\">No students enrolled yet.</div>" :
                     "<table class=\"simple-table\"><thead><tr><th>Name</th><th>Phone</th><th>Payment</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th></tr></thead><tbody>" +
                     c.students.map(s => (
