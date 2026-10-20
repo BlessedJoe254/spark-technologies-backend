@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Live Classes - Spark Technologies</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .lc-form { background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:14px; padding:18px; margin:0 0 22px 0; display:none; }
+    .lc-form h2 { margin:0 0 12px 0; font-size:18px; }
+    .lc-row { display:flex; flex-wrap:wrap; gap:10px; }
+    .lc-row select, .lc-row input { flex:1 1 200px; padding:10px 12px; border:1px solid rgba(0,0,0,.25); border-radius:10px; font:inherit; background:#fff; color:#111; }
+    .lc-card { background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:14px; padding:16px 18px; margin:0 0 12px 0; display:flex; flex-wrap:wrap; align-items:center; gap:12px; justify-content:space-between; }
+    .lc-card h3 { margin:0 0 4px 0; font-size:17px; color:#111; }
+    .lc-meta { font-size:13px; color:#555; }
+    .lc-badge { display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; margin-left:8px; vertical-align:middle; }
+    .lc-badge.live { background:#e0261b; color:#fff; }
+    .lc-badge.scheduled { background:#e6efe9; color:#1b5e3f; }
+    .lc-badge.ended { background:#eee; color:#666; }
+    .lc-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .lc-end { border:1px solid rgba(0,0,0,.25); background:#fff; color:#b3261e; border-radius:10px; padding:9px 14px; cursor:pointer; font:inherit; }
+    .lc-wait { font-size:13px; color:#777; }
+    #lc-msg { font-size:14px; margin-top:10px; }
+  </style>
+</head>
+<body>
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <img src="assets/logo-sidebar.png" alt="Spark Technologies">
+      </div>
+      <nav>
+        <span class="nav-label">MAIN</span>
+        <a class="nav-link" href="index.html"><span class="dot"></span> Home</a>
+        <a class="nav-link" href="courses.html"><span class="dot"></span> Courses</a>
+        <a class="nav-link" href="projects.html"><span class="dot"></span> Projects</a>
+        <a class="nav-link" href="about.html"><span class="dot"></span> About Us</a>
+        <a class="nav-link" href="contact.html"><span class="dot"></span> Contact Us</a>
+        <a class="nav-link active" href="classes.html"><span class="dot"></span> Live Classes</a>
+
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="login.html"><span class="dot"></span> Login</a>
+        <a class="nav-link" href="register.html"><span class="dot"></span> Create Account</a>
+      </nav>
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar__title">
+          <p class="eyebrow">LIVE CLASSES</p>
+          <h1>Virtual classroom</h1>
+        </div>
+      </div>
+
+      <div class="lc-form" id="lc-form">
+        <h2>Create a class</h2>
+        <div class="lc-row">
+          <select id="lc-course"></select>
+          <input id="lc-title" type="text" placeholder="Class title, e.g. Week 3: Databases" maxlength="200">
+          <input id="lc-when" type="datetime-local">
+          <button class="btn btn-primary" id="lc-create" type="button">Create class</button>
+        </div>
+        <div id="lc-msg"></div>
+      </div>
+
+      <div id="lc-list"><p class="lc-meta">Loading classes...</p></div>
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    var tg = document.querySelector(".sidebar-toggle"), sb = document.querySelector(".sidebar");
+    if (tg && sb) tg.addEventListener("click", function () { sb.classList.toggle("open"); });
+
+    var list = document.getElementById("lc-list");
+    var form = document.getElementById("lc-form");
+    var msg = document.getElementById("lc-msg");
+    var sel = document.getElementById("lc-course");
+    var role = "";
+
+    function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+    function label(st) { return st === "live" ? "Live now" : st === "ended" ? "Ended" : "Upcoming"; }
+    function order(a, b) {
+      var w = { live: 0, scheduled: 1, ended: 2 };
+      if (w[a.status] !== w[b.status]) return w[a.status] - w[b.status];
+      return String(a.scheduled_at).localeCompare(String(b.scheduled_at));
+    }
+
+    function render(d) {
+      role = d.role;
+      var mod = role === "trainer" || role === "admin";
+      form.style.display = mod ? "block" : "none";
+      if (mod) {
+        sel.innerHTML = d.courses.length
+          ? d.courses.map(function (c) { return '<option value="' + c.id + '">' + esc(c.title) + "</option>"; }).join("")
+          : '<option value="">No courses assigned to you</option>';
+      }
+      if (!d.classes.length) {
+        list.innerHTML = '<p class="lc-meta">' + (mod ? "No classes yet. Create one above." : "No live classes for your courses yet.") + "</p>";
+        return;
+      }
+      list.innerHTML = d.classes.slice().sort(order).map(function (c) {
+        var when = new Date(c.scheduled_at);
+        var whenTxt = isNaN(when.getTime()) ? "" : when.toLocaleString();
+        var actions = "";
+        if (c.status !== "ended") {
+          if (mod) {
+            actions = '<a class="btn btn-primary" href="class-room.html?id=' + c.id + '">' + (c.status === "live" ? "Rejoin" : "Start class") + "</a>" +
+                      '<button class="lc-end" type="button" data-end="' + c.id + '">End</button>';
+          } else if (c.status === "live") {
+            actions = '<a class="btn btn-primary" href="class-room.html?id=' + c.id + '">Join class</a>';
+          } else {
+            actions = '<span class="lc-wait">Waiting for the trainer to start</span>';
+          }
+        }
+        return '<div class="lc-card"><div><h3>' + esc(c.title) + '<span class="lc-badge ' + esc(c.status) + '">' + label(c.status) + "</span></h3>" +
+               '<div class="lc-meta">' + esc(c.course_title) + (whenTxt ? " &middot; " + esc(whenTxt) : "") + "</div></div>" +
+               '<div class="lc-actions">' + actions + "</div></div>";
+      }).join("");
+    }
+
+    async function load() {
+      try {
+        var r = await fetch("/api/classes");
+        if (r.status === 401) { location.href = "login.html"; return; }
+        var d = await r.json();
+        if (!r.ok) { list.innerHTML = '<p class="lc-meta">' + esc(d.error || "Could not load classes.") + "</p>"; return; }
+        render(d);
+      } catch (e) {
+        list.innerHTML = '<p class="lc-meta">Could not reach the server.</p>';
+      }
+    }
+
+    document.getElementById("lc-create").addEventListener("click", async function () {
+      var title = document.getElementById("lc-title").value.trim();
+      var when = document.getElementById("lc-when").value;
+      if (!sel.value || !title) { msg.style.color = "#b3261e"; msg.textContent = "Choose a course and enter a title."; return; }
+      var body = { course_id: sel.value, title: title, scheduled_at: when ? new Date(when).toISOString() : new Date().toISOString() };
+      try {
+        var r = await fetch("/api/classes/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        var d = await r.json();
+        if (!r.ok) { msg.style.color = "#b3261e"; msg.textContent = d.error || "Could not create the class."; return; }
+        msg.style.color = "#1b5e3f"; msg.textContent = "Class created.";
+        document.getElementById("lc-title").value = "";
+        load();
+      } catch (e) { msg.style.color = "#b3261e"; msg.textContent = "Could not reach the server."; }
+    });
+
+    list.addEventListener("click", async function (e) {
+      var id = e.target && e.target.getAttribute && e.target.getAttribute("data-end");
+      if (!id) return;
+      if (!confirm("End this class? Students will no longer be able to join.")) return;
+      await fetch("/api/classes/" + id + "/end", { method: "POST" });
+      load();
+    });
+
+    load();
+    setInterval(load, 20000);
+  })();
+  </script>
+  <script src="/js/pwa.js"></script>
+</body>
+</html>

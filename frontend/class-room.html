@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Class - Spark Technologies</title>
+  <style>
+    html, body { height:100%; margin:0; background:#0b1410; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    body { display:flex; flex-direction:column; }
+    .bar { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; padding-top:calc(10px + env(safe-area-inset-top, 0px)); background:#111d17; border-bottom:1px solid rgba(255,255,255,.08); }
+    .bar a { color:#fff; text-decoration:none; background:rgba(255,255,255,.1); padding:8px 14px; border-radius:10px; font-size:14px; }
+    .bar strong { font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #jaas { flex:1 1 auto; min-height:0; }
+    #state { padding:40px 20px; text-align:center; font-size:15px; line-height:1.5; }
+    #state a { color:#9DBBAB; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <a href="classes.html">&larr; Back to classes</a>
+    <strong id="title">Joining...</strong>
+  </div>
+  <div id="state">Connecting to your class...</div>
+  <div id="jaas"></div>
+
+  <script>
+  (function () {
+    var state = document.getElementById("state");
+    var id = new URLSearchParams(location.search).get("id");
+    function fail(t) { state.innerHTML = t + '<br><br><a href="classes.html">Back to classes</a>'; }
+    if (!id) { fail("No class selected."); return; }
+
+    fetch("/api/classes/" + encodeURIComponent(id) + "/join", { method: "POST" })
+      .then(function (r) {
+        if (r.status === 401) { location.href = "login.html"; return null; }
+        return r.json().then(function (d) { return { ok: r.ok, d: d }; });
+      })
+      .then(function (res) {
+        if (!res) return;
+        if (!res.ok) { fail(res.d.error || "Could not join this class."); return; }
+        var d = res.d;
+        document.getElementById("title").textContent = d.title;
+        var s = document.createElement("script");
+        s.src = "https://8x8.vc/" + d.appId + "/external_api.js";
+        s.onerror = function () { fail("Could not load the video service. Check your internet connection."); };
+        s.onload = function () {
+          state.style.display = "none";
+          var api = new JitsiMeetExternalAPI("8x8.vc", {
+            roomName: d.appId + "/" + d.room,
+            jwt: d.jwt,
+            parentNode: document.getElementById("jaas"),
+            width: "100%",
+            height: "100%",
+            userInfo: { displayName: d.displayName },
+            configOverwrite: { prejoinPageEnabled: false }
+          });
+          api.addListener("readyToClose", function () { location.href = "classes.html"; });
+        };
+        document.head.appendChild(s);
+      })
+      .catch(function () { fail("Could not reach the server."); });
+  })();
+  </script>
+</body>
+</html>

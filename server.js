@@ -1102,7 +1102,7 @@ app.post("/api/messages/:id/read", requireLogin, async (req, res) => {
   }
 });
 // ---------- Admin: manage user access ----------
-app.get("/api/admin/users", async (req, res) => {
+app.get("/api/admin/users", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     if (!req.session.user || req.session.user.role !== "admin") return res.status(403).json({ error: "Not authorized." });
     const [rows] = await pool.query(
@@ -1203,7 +1203,7 @@ app.post("/api/admin/certificates/toggle-complete", requireLogin, requireRole("a
   }
 });
 
-app.post("/api/admin/users/:id/status", async (req, res) => {
+app.post("/api/admin/users/:id/status", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     if (!req.session.user || req.session.user.role !== "admin") return res.status(403).json({ error: "Not authorized." });
     const targetId = Number(req.params.id);
@@ -2031,6 +2031,177 @@ app.post("/api/admin/intakes/assign", requireLogin, requireRole("admin"), async 
   } catch (err) {
     console.error("Assign intake error:", err.message);
     res.status(500).json({ error: "Could not assign the intake right now." });
+  }
+});
+
+// ---------- Live classes (JaaS / Jitsi) ----------
+async function ensureLiveClassesTable() {
+  try {
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS live_classes (" +
+      "id INT AUTO_INCREMENT PRIMARY KEY, " +
+      "course_id INT NOT NULL, " +
+      "trainer_id INT NOT NULL, " +
+      "title VARCHAR(200) NOT NULL, " +
+      "scheduled_at VARCHAR(30) NOT NULL, " +
+      "room VARCHAR(60) NOT NULL, " +
+      "status VARCHAR(12) NOT NULL DEFAULT 'scheduled', " +
+      "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+      "INDEX (course_id), INDEX (trainer_id)" +
+      ")"
+    );
+  } catch (err) {
+    console.warn("Could not verify/create live_classes table:", err.message);
+  }
+}
+ensureLiveClassesTable();
+
+function jaasPrivateKey() {
+  if (process.env.JAAS_PRIVATE_KEY) return process.env.JAAS_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const p = path.resolve(__dirname, process.env.JAAS_PRIVATE_KEY_PATH || "config/jaas-private.pk");
+  return fs.readFileSync(p, "utf8");
+}
+
+function b64url(x) {
+  return Buffer.from(typeof x === "string" ? x : JSON.stringify(x)).toString("base64url");
+}
+
+function signJaasToken(user, room, isModerator) {
+  const appId = process.env.JAAS_APP_ID;
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", kid: process.env.JAAS_KEY_ID, typ: "JWT" };
+  const payload = {
+    aud: "jitsi",
+    iss: "chat",
+    iat: now,
+    nbf: now - 10,
+    exp: now + 60 * 60 * 4,
+    sub: appId,
+    room: room,
+    context: {
+      user: {
+        id: String(user.id),
+        name: user.full_name,
+        email: user.email || "",
+        moderator: isModerator ? "true" : "false"
+      }
+    }
+  };
+  const data = b64url(header) + "." + b64url(payload);
+  const sig = crypto.createSign("RSA-SHA256").update(data).sign(jaasPrivateKey());
+  return data + "." + sig.toString("base64url");
+}
+
+function requireAnyRole(roles) {
+  return (req, res, next) => {
+    if (!req.session.user || !roles.includes(req.session.user.role)) {
+      return res.status(403).json({ error: "You are not authorized to do that." });
+    }
+    next();
+  };
+}
+
+app.get("/api/classes", requireLogin, async (req, res) => {
+  try {
+    const u = req.session.user;
+    let courses = [], rows = [];
+    const cols = "lc.id, lc.title, lc.scheduled_at, lc.status, c.title AS course_title ";
+    if (u.role === "trainer") {
+      [courses] = await pool.query("SELECT id, title FROM courses WHERE trainer_id = ? ORDER BY title", [u.id]);
+      [rows] = await pool.query(
+        "SELECT " + cols + "FROM live_classes lc JOIN courses c ON c.id = lc.course_id " +
+        "WHERE lc.trainer_id = ? ORDER BY lc.scheduled_at ASC LIMIT 200", [u.id]);
+    } else if (u.role === "admin") {
+      [courses] = await pool.query("SELECT id, title FROM courses ORDER BY title");
+      [rows] = await pool.query(
+        "SELECT " + cols + "FROM live_classes lc JOIN courses c ON c.id = lc.course_id " +
+        "ORDER BY lc.scheduled_at ASC LIMIT 200");
+    } else {
+      [rows] = await pool.query(
+        "SELECT " + cols + "FROM live_classes lc " +
+        "JOIN courses c ON c.id = lc.course_id " +
+        "JOIN enrollments e ON e.course_id = lc.course_id " +
+        "WHERE e.user_id = ? AND (e.has_paid = 1 OR c.fee_kes IS NULL) " +
+        "ORDER BY lc.scheduled_at ASC LIMIT 200", [u.id]);
+    }
+    res.json({ role: u.role, courses, classes: rows });
+  } catch (err) {
+    console.error("List classes error:", err.message);
+    res.status(500).json({ error: "Could not load classes right now." });
+  }
+});
+
+app.post("/api/classes/create", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const u = req.session.user;
+    const { course_id, title, scheduled_at } = req.body;
+    if (!course_id || !title || !String(title).trim()) return res.status(400).json({ error: "Course and title are required." });
+    const when = new Date(scheduled_at || Date.now());
+    if (isNaN(when.getTime())) return res.status(400).json({ error: "Invalid date and time." });
+
+    const [[course]] = await pool.query("SELECT id, trainer_id FROM courses WHERE id = ?", [course_id]);
+    if (!course) return res.status(404).json({ error: "Course not found." });
+    if (u.role === "trainer" && course.trainer_id !== u.id) return res.status(403).json({ error: "This is not your course." });
+
+    const room = "spark-" + crypto.randomBytes(8).toString("hex");
+    await pool.query(
+      "INSERT INTO live_classes (course_id, trainer_id, title, scheduled_at, room) VALUES (?, ?, ?, ?, ?)",
+      [course.id, course.trainer_id || u.id, String(title).trim().slice(0, 200), when.toISOString(), room]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Create class error:", err.message);
+    res.status(500).json({ error: "Could not create the class right now." });
+  }
+});
+
+app.post("/api/classes/:id/join", requireLogin, async (req, res) => {
+  try {
+    const u = req.session.user;
+    if (!process.env.JAAS_APP_ID || !process.env.JAAS_KEY_ID) {
+      return res.status(500).json({ error: "Video service is not configured on the server." });
+    }
+    const [[cls]] = await pool.query("SELECT * FROM live_classes WHERE id = ?", [req.params.id]);
+    if (!cls) return res.status(404).json({ error: "Class not found." });
+    if (cls.status === "ended") return res.status(410).json({ error: "This class has ended." });
+
+    let isMod = false;
+    if (u.role === "admin") isMod = true;
+    else if (u.role === "trainer") {
+      if (cls.trainer_id !== u.id) return res.status(403).json({ error: "This is not your class." });
+      isMod = true;
+    } else if (u.role === "student") {
+      const [[enr]] = await pool.query(
+        "SELECT e.has_paid, c.fee_kes FROM enrollments e JOIN courses c ON c.id = e.course_id " +
+        "WHERE e.user_id = ? AND e.course_id = ?", [u.id, cls.course_id]);
+      if (!enr) return res.status(403).json({ error: "You are not enrolled in this course." });
+      if (!enr.has_paid && enr.fee_kes !== null) return res.status(403).json({ error: "Please complete payment to join this class." });
+      if (cls.status !== "live") return res.status(409).json({ error: "The trainer has not started this class yet. Try again soon." });
+    } else {
+      return res.status(403).json({ error: "You are not authorized to join." });
+    }
+
+    if (isMod && cls.status !== "live") await pool.query("UPDATE live_classes SET status = 'live' WHERE id = ?", [cls.id]);
+
+    const token = signJaasToken(u, cls.room, isMod);
+    res.json({ appId: process.env.JAAS_APP_ID, room: cls.room, jwt: token, displayName: u.full_name, moderator: isMod, title: cls.title });
+  } catch (err) {
+    console.error("Join class error:", err.message);
+    res.status(500).json({ error: "Could not join the class right now." });
+  }
+});
+
+app.post("/api/classes/:id/end", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const u = req.session.user;
+    const [[cls]] = await pool.query("SELECT id, trainer_id FROM live_classes WHERE id = ?", [req.params.id]);
+    if (!cls) return res.status(404).json({ error: "Class not found." });
+    if (u.role === "trainer" && cls.trainer_id !== u.id) return res.status(403).json({ error: "This is not your class." });
+    await pool.query("UPDATE live_classes SET status = 'ended' WHERE id = ?", [cls.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("End class error:", err.message);
+    res.status(500).json({ error: "Could not end the class right now." });
   }
 });
 
