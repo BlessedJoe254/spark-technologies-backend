@@ -153,6 +153,7 @@
       if (!isStudent()) { if (cb) cb(); return; }
       j("/api/hs/my-payments").then(function (r) { return r.ok ? r.json() : { status: {} }; }).then(function (d) {
         paid = d.status || {};
+        (d.ids || []).forEach(function (id) { if (!paid[id]) paid[id] = "submitted"; });
         if (d.fee) { fee = d.fee; document.getElementById("hs-feenote").textContent = "Each live lesson costs KES " + fee + ". You will be asked for your M-Pesa code when you join."; }
         if (cb) cb();
       });
@@ -165,6 +166,7 @@
           ? '<button type="button" class="btn btn-primary" data-join="' + c.id + '">Join class</button>'
           : '<span class="hs-meta">Payment approved. Join opens when your teacher starts</span>';
       }
+      if (st === "submitted") return '<span class="hs-badge scheduled" style="margin-left:0;">Submitted</span>' + (c.status === "live" ? ' <button type="button" class="btn btn-primary" data-join="' + c.id + '">Join class</button>' : "");
       if (st === "pending") return '<span class="hs-meta">Payment awaiting admin approval</span>';
       var lbl = st === "rejected" ? "Code rejected. Send a new code" : (c.status === "live" ? "Join class (KES " + fee + ")" : "Pay KES " + fee + " now");
       return '<button type="button" class="btn btn-primary" data-join="' + c.id + '">' + lbl + "</button>";
@@ -200,7 +202,7 @@
     document.getElementById("hs-classes").addEventListener("click", function (e) {
       var id = e.target.getAttribute && e.target.getAttribute("data-join");
       if (!id) return;
-      if (paid[id] === "approved") { location.href = "class-room.html?id=" + id; return; }
+      if (paid[id] === "approved" || paid[id] === "submitted") { location.href = "class-room.html?id=" + id; return; }
       payClass = id;
       document.getElementById("pay-title").textContent = classMap[id] ? classMap[id].title : "";
       document.getElementById("pay-code").value = "";
@@ -220,7 +222,7 @@
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           if (!res.ok) { msg.style.color = "#b3261e"; msg.textContent = res.d.error || "Could not save your code."; btn.disabled = false; return; }
-          btn.disabled = false; msg.style.color = "#1b5e3f"; msg.textContent = "Code received. Waiting for admin approval.";
+          btn.disabled = false; msg.style.color = "#1b5e3f"; msg.textContent = "Submitted.";
           setTimeout(function () { closePay(); loadPaid(loadClasses); }, 1800);
         })
         .catch(function () { msg.style.color = "#b3261e"; msg.textContent = "Could not reach the server."; btn.disabled = false; });
