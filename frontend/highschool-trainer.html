@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Program Trainer - Spark Technologies</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .hs-banner { background:linear-gradient(135deg,#0f1c16,#1f8a5b); color:#fff; border-radius:18px; padding:22px 24px; margin:0 0 22px 0; }
+    .hs-banner h2 { margin:0 0 4px; font-size:22px; color:#fff; } .hs-banner p { margin:0; opacity:.85; font-size:14px; }
+    .hs-h { font-size:18px; margin:26px 0 8px; color:#111; }
+    .hs-box { background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:14px; padding:16px; margin:0 0 14px 0; }
+    .hs-row { display:flex; flex-wrap:wrap; gap:8px; }
+    .hs-row input, .hs-row select { flex:1 1 180px; padding:9px 11px; border:1px solid rgba(0,0,0,.25); border-radius:10px; font:inherit; background:#fff; color:#111; min-width:0; }
+    .hs-card { background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:14px; padding:14px 18px; margin:0 0 10px 0; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+    .hs-meta { font-size:13px; color:#555; margin-top:2px; }
+    .hs-badge { display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; margin-left:8px; }
+    .hs-badge.live { background:#e0261b; color:#fff; } .hs-badge.scheduled { background:#e6efe9; color:#1b5e3f; }
+    .hs-end { border:1px solid rgba(0,0,0,.25); background:#fff; color:#b3261e; border-radius:10px; padding:9px 14px; cursor:pointer; font:inherit; }
+    .hs-empty { font-size:14px; color:#666; padding:6px 0; }
+    .hs-scroll { overflow-x:auto; }
+    .hs-msg { font-size:13px; margin-top:8px; min-height:16px; }
+    .hs-check { display:block; padding:5px 0; font-size:14px; }
+  </style>
+</head>
+<body>
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar__logo"><img src="assets/logo-sidebar.png" alt="Spark Technologies"></div>
+      <nav>
+        <span class="nav-label">MY PROGRAM</span>
+        <a class="nav-link active" href="highschool-trainer.html"><span class="dot"></span> Trainer tools</a>
+        <a class="nav-link" href="highschool.html"><span class="dot"></span> Timetable &amp; payments</a>
+        <a class="nav-link" href="index.html"><span class="dot"></span> My dashboard</a>
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="#" id="tr-logout"><span class="dot"></span> Log out</a>
+      </nav>
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+    <main class="main">
+      <div class="topbar"><div class="topbar__title"><p class="eyebrow">HOLIDAY PROGRAM</p><h1 id="tr-title">Program trainer</h1></div></div>
+      <div class="hs-banner"><h2 id="tr-hello">Welcome</h2><p>Run your live classes, take attendance, enter scores and upload notes.</p></div>
+      <div id="tr-blocked" class="hs-box" style="display:none;"></div>
+
+      <div id="tr-main" style="display:none;">
+        <h2 class="hs-h">Live classes</h2>
+        <div class="hs-box">
+          <div class="hs-row">
+            <input id="lc-title" type="text" placeholder="Class title, e.g. Mathematics - Algebra" maxlength="200">
+            <input id="lc-when" type="datetime-local">
+            <button class="btn btn-primary" id="lc-create" type="button">Create class</button>
+          </div>
+          <div class="hs-msg" id="lc-msg"></div>
+        </div>
+        <div id="lc-list"><div class="hs-empty">Loading...</div></div>
+
+        <h2 class="hs-h">Attendance</h2>
+        <div class="hs-box">
+          <button class="btn btn-ghost" id="rec-btn" type="button">Record today's class</button>
+          <span class="hs-meta" id="rec-count"></span>
+          <div id="rec-list" style="display:none;margin-top:10px;"></div>
+        </div>
+
+        <h2 class="hs-h">Students</h2>
+        <div class="hs-scroll" id="st-box"><div class="hs-empty">Loading...</div></div>
+
+        <h2 class="hs-h">Notes</h2>
+        <div class="hs-box">
+          <form id="nt-form" class="hs-row">
+            <input type="text" id="nt-title" placeholder="Note title" required>
+            <input type="file" id="nt-file" accept=".pdf,.doc,.docx" required>
+            <button type="submit" class="btn btn-ghost">Upload note</button>
+          </form>
+          <div class="hs-msg" id="nt-msg"></div>
+        </div>
+        <div id="nt-list"></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    var tg = document.querySelector(".sidebar-toggle"), sb = document.querySelector(".sidebar");
+    if (tg && sb) tg.addEventListener("click", function () { sb.classList.toggle("open"); });
+    var me = null, cid = null, group = null;
+    function $(id) { return document.getElementById(id); }
+    function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+    function j(url, opt) { return fetch(url, Object.assign({ credentials: "include" }, opt || {})); }
+    function post(url, body) {
+      return j(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); });
+    }
+    function say(el, ok, t) { el.style.color = ok ? "#1b5e3f" : "#b3261e"; el.textContent = t; }
+    function fmtWhen(v) { var w = new Date(v); return isNaN(w.getTime()) ? "" : w.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
+
+    $("tr-logout").addEventListener("click", function (e) {
+      e.preventDefault();
+      j("/api/logout", { method: "POST" }).then(function () { location.href = "login.html"; });
+    });
+
+    function loadClasses() {
+      j("/api/hs/classes").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        var box = $("lc-list");
+        if (!d) { box.innerHTML = '<div class="hs-empty">Could not load classes.</div>'; return; }
+        var act = d.classes.filter(function (c) { return c.status === "live" || c.status === "scheduled"; });
+        if (!act.length) { box.innerHTML = '<div class="hs-empty">No classes yet. Create one above.</div>'; return; }
+        box.innerHTML = act.map(function (c) {
+          return '<div class="hs-card"><div><b>' + esc(c.title) + '</b><span class="hs-badge ' + esc(c.status) + '">' + (c.status === "live" ? "Live now" : "Upcoming") + '</span><div class="hs-meta">' + esc(fmtWhen(c.scheduled_at)) + '</div></div><div>' +
+            '<a class="btn btn-primary" href="class-room.html?id=' + c.id + '">' + (c.status === "live" ? "Rejoin" : "Start class") + '</a> ' +
+            '<button type="button" class="hs-end" data-end="' + c.id + '">End</button></div></div>';
+        }).join("");
+      });
+    }
+
+    $("lc-create").addEventListener("click", function () {
+      var t = $("lc-title").value.trim(), w = $("lc-when").value, m = $("lc-msg");
+      if (!t) { say(m, false, "Enter a class title."); return; }
+      post("/api/classes/create", { course_id: cid, title: t, scheduled_at: w ? new Date(w).toISOString() : new Date().toISOString() }).then(function (r) {
+        if (!r.ok) { say(m, false, r.d.error || "Could not create the class."); return; }
+        say(m, true, "Class created."); $("lc-title").value = ""; loadClasses();
+      });
+    });
+
+    function loadStudents() {
+      j("/api/trainer/students").then(function (r) { return r.ok ? r.json() : null; }).then(function (groups) {
+        if (!groups) { $("st-box").innerHTML = '<div class="hs-empty">Could not load students.</div>'; return; }
+        group = groups.filter(function (g) { return g.course_id === cid; })[0];
+        if (!group) { $("st-box").innerHTML = '<div class="hs-empty">The program course is not assigned to you.</div>'; return; }
+        var max = 10;
+        $("rec-count").textContent = " " + group.sessions_count + "/" + max + " classes recorded";
+        $("rec-btn").disabled = group.sessions_count >= max;
+        renderNotes(group.notes);
+        if (!group.students.length) { $("st-box").innerHTML = '<div class="hs-empty">No students enrolled yet.</div>'; return; }
+        $("st-box").innerHTML = '<table class="simple-table"><thead><tr><th>Name</th><th>Phone</th><th>Attendance</th><th>CAT 1</th><th>CAT 2</th><th>Final</th><th>Completion</th><th></th></tr></thead><tbody>' +
+          group.students.map(function (s) {
+            function sc(t) { return s.scores && s.scores[t] ? s.scores[t].score : ""; }
+            var done = s.completed
+              ? '<span style="color:#1e8449;font-weight:bold;font-size:12px;">Completed</span> <button type="button" class="btn btn-ghost" data-done="0" data-sid="' + s.id + '" style="padding:3px 8px;font-size:11px;">Undo</button>'
+              : '<button type="button" class="btn btn-ghost" data-done="1" data-sid="' + s.id + '" style="padding:5px 10px;font-size:12px;">Mark completed</button>';
+            return '<tr data-sid="' + s.id + '"><td>' + esc(s.full_name) + '</td><td>' + esc(s.phone || "-") + '</td><td>' + esc(s.attended) + '/' + max + '</td>' +
+              '<td><input type="number" min="0" max="100" class="sc" data-type="cat1" value="' + esc(sc("cat1")) + '" style="width:55px;"></td>' +
+              '<td><input type="number" min="0" max="100" class="sc" data-type="cat2" value="' + esc(sc("cat2")) + '" style="width:55px;"></td>' +
+              '<td><input type="number" min="0" max="100" class="sc" data-type="final" value="' + esc(sc("final")) + '" style="width:55px;"></td>' +
+              '<td>' + done + '</td><td><button type="button" class="btn btn-ghost" data-save="1" style="padding:5px 10px;font-size:12px;">Save</button></td></tr>';
+          }).join("") + '</tbody></table>';
+      });
+    }
+
+    function renderNotes(notes) {
+      $("nt-list").innerHTML = (!notes || !notes.length) ? '<div class="hs-empty">No notes uploaded yet.</div>' :
+        '<table class="simple-table"><thead><tr><th>Title</th><th></th></tr></thead><tbody>' + notes.map(function (n) {
+          return '<tr><td>' + esc(n.title) + '</td><td><a href="/api/notes/' + n.id + '/download" class="btn btn-ghost" style="padding:4px 10px;font-size:12px;">Download</a></td></tr>';
+        }).join("") + '</tbody></table>';
+    }
+
+    document.addEventListener("click", function (e) {
+      var t = e.target;
+      if (!t.getAttribute) return;
+      var endId = t.getAttribute("data-end");
+      if (endId) {
+        if (!confirm("End this class? Students will no longer be able to join.")) return;
+        j("/api/classes/" + endId + "/end", { method: "POST" }).then(loadClasses);
+        return;
+      }
+      var done = t.getAttribute("data-done");
+      if (done !== null && t.getAttribute("data-sid")) {
+        var yes = done === "1";
+        if (!confirm(yes ? "Mark this student as completed? Only do this after you have taught all the lessons." : "Remove the completed mark for this student?")) return;
+        post("/api/trainer/complete-student", { course_id: cid, student_id: Number(t.getAttribute("data-sid")), completed: yes }).then(function (r) {
+          if (!r.ok) alert(r.d.error || "Could not update."); loadStudents();
+        });
+        return;
+      }
+      if (t.getAttribute("data-save")) {
+        var row = t.closest("tr"), sid = Number(row.getAttribute("data-sid")), ins = row.querySelectorAll(".sc"), chain = Promise.resolve(), bad = false;
+        t.disabled = true; t.textContent = "...";
+        Array.prototype.forEach.call(ins, function (inp) {
+          if (inp.value === "") return;
+          chain = chain.then(function () {
+            return post("/api/trainer/scores", { course_id: cid, student_id: sid, assessment_type: inp.getAttribute("data-type"), score: Number(inp.value) })
+              .then(function (r) { if (!r.ok) bad = true; });
+          });
+        });
+        chain.then(function () {
+          t.textContent = bad ? "Error" : "Saved";
+          setTimeout(function () { t.textContent = "Save"; t.disabled = false; }, 1200);
+        });
+      }
+    });
+
+    $("rec-btn").addEventListener("click", function () {
+      var btn = this; btn.disabled = true;
+      post("/api/trainer/sessions", { course_id: cid }).then(function (r) {
+        btn.disabled = false;
+        if (!r.ok) { alert(r.d.error || "Could not record the class."); return; }
+        var sess = r.d.session, list = $("rec-list"), studs = (group && group.students) || [];
+        list.style.display = "block";
+        list.innerHTML = '<b>Mark attendance - class ' + esc(sess.session_number) + ' of 10</b>' +
+          (studs.length ? studs.map(function (s) { return '<label class="hs-check"><input type="checkbox" class="pres" data-sid="' + s.id + '"> ' + esc(s.full_name) + '</label>'; }).join("") +
+            '<button type="button" class="btn btn-primary" id="rec-save" style="margin-top:8px;">Save attendance</button>' : '<div class="hs-empty">No students enrolled to mark.</div>');
+        var sv = $("rec-save");
+        if (sv) sv.addEventListener("click", function () {
+          sv.disabled = true; sv.textContent = "Saving...";
+          var recs = Array.prototype.map.call(list.querySelectorAll(".pres"), function (cb) { return { student_id: Number(cb.getAttribute("data-sid")), present: cb.checked }; });
+          post("/api/trainer/attendance", { session_id: sess.id, records: recs }).then(function (x) {
+            if (!x.ok) { sv.textContent = "Error, try again"; sv.disabled = false; return; }
+            list.style.display = "none"; list.innerHTML = ""; loadStudents();
+          });
+        });
+      });
+    });
+
+    $("nt-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var f = $("nt-file").files[0], m = $("nt-msg");
+      if (!f) return;
+      var fd = new FormData();
+      fd.append("course_id", cid); fd.append("title", $("nt-title").value.trim()); fd.append("file", f);
+      say(m, true, "Uploading...");
+      j("/api/trainer/notes", { method: "POST", body: fd }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (r) {
+          if (!r.ok) { say(m, false, r.d.error || "Could not upload the note."); return; }
+          say(m, true, "Note uploaded."); $("nt-title").value = ""; $("nt-file").value = ""; loadStudents();
+        });
+    });
+
+    function blocked(t) { var b = $("tr-blocked"); b.style.display = "block"; b.innerHTML = t; }
+
+    j("/api/session").then(function (r) { return r.json(); }).then(function (s) {
+      if (!s.user) { location.href = "login.html"; return null; }
+      $("tr-hello").textContent = "Welcome, " + s.user.full_name;
+      if (s.user.role === "admin") { blocked('Admins manage the program from <a href="highschool.html">the program page</a>.'); return null; }
+      if (s.user.role !== "trainer") { location.href = "highschool.html"; return null; }
+      return j("/api/hs/me").then(function (r) { return r.json(); });
+    }).then(function (m) {
+      if (!m) return;
+      me = m;
+      if (m.title) $("tr-title").textContent = m.title;
+      if (!m.course_id || !m.can_edit) { blocked("You are not assigned to this program yet. Ask the admin to assign the program course to you."); return; }
+      cid = m.course_id;
+      $("tr-main").style.display = "block";
+      loadClasses(); loadStudents();
+      setInterval(function () { loadClasses(); }, 20000);
+    });
+  })();
+  </script>
+  <script src="/js/pwa.js"></script>
+</body>
+</html>

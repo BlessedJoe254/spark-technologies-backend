@@ -56,7 +56,7 @@
       <div class="sidebar__logo"><img src="assets/logo-sidebar.png" alt="Spark Technologies"></div>
       <nav>
         <span class="nav-label">MY PROGRAM</span>
-        <a class="nav-link active" href="highschool.html"><span class="dot"></span> Classes &amp; Timetable</a>
+        <a class="nav-link active" href="highschool.html"><span class="dot"></span> Classes &amp; Timetable</a><a class="nav-link" href="highschool-trainer.html" id="hs-trainer-link" style="display:none;"><span class="dot"></span> Trainer tools</a>
         <span class="nav-label">ACCOUNT</span>
         <a class="nav-link" href="#" id="hs-logout"><span class="dot"></span> Log out</a>
       </nav>
@@ -330,7 +330,7 @@
       if (isStudent() && !me.is_hs) { location.href = "index.html"; return; }
       if (!isStudent() && !me.course_id) { document.getElementById("hs-classes").innerHTML = '<div class="hs-empty">The program course was not found.</div>'; return; }
       if (me.title) document.getElementById("hs-title").textContent = me.title;
-      if (canEdit) { document.getElementById("hs-edit").style.display = "block"; document.getElementById("hs-feenote").style.display = "none"; }
+      if (me.role === "trainer") document.getElementById("hs-trainer-link").style.display = "block"; if (canEdit) { document.getElementById("hs-edit").style.display = "block"; document.getElementById("hs-feenote").style.display = "none"; }
       else document.getElementById("hs-howpay").style.display = "block";
       loadPaid(function () { loadClasses(); });
       loadTable(); loadPayments();
