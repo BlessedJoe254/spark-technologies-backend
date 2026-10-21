@@ -142,3 +142,30 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", add);
   else add();
 })();
+
+
+/* spark-hs-redirect: program students always land on the high school page */
+(function () {
+  if (/highschool|class-room/i.test(location.pathname)) return;
+  function go() {
+    fetch("/api/session", { credentials: "include" })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        if (!s || !s.user || s.user.role !== "student") return;
+        return fetch("/api/hs/me", { credentials: "include" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (m) { if (m && m.is_hs) location.replace("highschool.html"); });
+      })
+      .catch(function () {});
+  }
+  go();
+  var of = window.fetch;
+  window.fetch = function () {
+    var args = arguments, p = of.apply(this, args);
+    try {
+      var u = String((args[0] && args[0].url) || args[0] || "");
+      if (/login/i.test(u)) p.then(function (r) { if (r && r.ok) setTimeout(go, 400); }).catch(function () {});
+    } catch (e) {}
+    return p;
+  };
+})();
