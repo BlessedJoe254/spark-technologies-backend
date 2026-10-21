@@ -19,7 +19,7 @@ async function init() {
     setInterval(loadNotificationBell, 20000);
 
     if (session.user.role === "student") {
-      showPanel("student-panel");
+      showPanel("student-panel"); hsRedirect();
       loadStudentCourses();
       loadStudentInbox();
       setInterval(loadStudentInbox, 20000);
@@ -2347,6 +2347,35 @@ function fitCertText() {
     });
     scan();
     setInterval(load, 30000);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+})();
+
+/* hs-v1 */
+async function hsRedirect() {
+  try {
+    var r = await fetch(API_BASE + "/api/hs/me", { credentials: "include" });
+    if (!r.ok) return;
+    var d = await r.json();
+    if (d.only_hs) location.replace("highschool.html");
+  } catch (e) {}
+}
+(function () {
+  function addLinks() {
+    document.querySelectorAll("#trainer-course-groups .trainer-group").forEach(function (g) {
+      if (g.dataset.hsLink) return;
+      var head = g.querySelector(".trainer-group-head");
+      if (!head || !/High School Holiday Revision/i.test(head.textContent)) return;
+      g.dataset.hsLink = "1";
+      var d = document.createElement("div");
+      d.innerHTML = '<div class="section-subhead">Timetable</div><a class="btn btn-ghost" href="highschool.html" style="padding:8px 14px;font-size:13px;margin-bottom:12px;display:inline-block;">Manage timetable</a>';
+      head.insertAdjacentElement("afterend", d);
+    });
+  }
+  function start() {
+    var el = document.getElementById("trainer-course-groups");
+    if (el) new MutationObserver(addLinks).observe(el, { childList: true });
+    addLinks();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>High School Holiday Revision Program - Register</title>
+  <style>
+    :root { --g:#1f8a5b; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:linear-gradient(160deg,#0f1c16,#173026 60%,#1f8a5b); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#14201a; }
+    .card { width:100%; max-width:460px; background:#fff; border-radius:20px; padding:30px 28px; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+    .tag { display:inline-block; font-size:11px; font-weight:700; letter-spacing:1.5px; color:var(--g); background:#e6efe9; padding:5px 11px; border-radius:20px; }
+    h1 { margin:12px 0 4px; font-size:24px; line-height:1.2; }
+    p.sub { margin:0 0 20px; color:#5b6b62; font-size:14px; }
+    label { display:block; font-size:13px; font-weight:600; margin:12px 0 5px; }
+    input, select { width:100%; padding:12px 13px; border:1px solid #c9d6cf; border-radius:11px; font:inherit; background:#fff; }
+    input:focus, select:focus { outline:2px solid var(--g); border-color:var(--g); }
+    button { width:100%; margin-top:20px; padding:13px; border:0; border-radius:11px; background:var(--g); color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.6; }
+    #msg { margin-top:12px; font-size:14px; min-height:18px; }
+    .hint { font-size:12px; color:#5b6b62; margin-top:4px; }
+    .foot { margin-top:16px; font-size:13px; text-align:center; color:#5b6b62; }
+    .foot a { color:var(--g); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="tag">HOLIDAY PROGRAM</span>
+    <h1>High School Holiday Revision Program 2026</h1>
+    <p class="sub">Register once and go straight to your live classes and timetable.</p>
+    <form id="f" novalidate>
+      <label>Full name</label><input id="full_name" type="text" placeholder="Jane Doe" required>
+      <label>Phone number</label><input id="phone" type="tel" placeholder="07xx xxx xxx" required>
+      <div class="hint">You will use your phone number to log in.</div>
+      <label>School</label><input id="school" type="text" placeholder="School name" required>
+      <label>Class level</label>
+      <select id="form_level" required>
+        <option value="">Select your class</option>
+        <optgroup label="Junior school">
+          <option>Grade 6</option><option>Grade 7</option><option>Grade 8</option><option>Grade 9</option>
+        </optgroup>
+        <optgroup label="Senior school">
+          <option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
+        </optgroup>
+        <optgroup label="8-4-4">
+          <option>Form 1</option><option>Form 2</option><option>Form 3</option>
+        </optgroup>
+      </select>
+      <label>Password</label><input id="password" type="password" placeholder="At least 4 characters" minlength="4" required>
+      <label>Confirm password</label><input id="confirm" type="password" placeholder="Re-enter your password" required>
+      <button type="submit" id="go">Register and open my dashboard</button>
+      <div id="msg"></div>
+    </form>
+    <div class="foot">Already registered? <a href="highschool-login.html">Log in</a></div>
+  </div>
+  <script>
+  (function () {
+    var f = document.getElementById("f"), msg = document.getElementById("msg"), go = document.getElementById("go");
+    function say(t, bad) { msg.style.color = bad ? "#b3261e" : "#1b5e3f"; msg.textContent = t; }
+    function v(id) { return document.getElementById(id).value.trim(); }
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (!v("full_name") || !v("phone") || !v("school") || !v("form_level") || !v("password")) { say("Please fill in all the fields.", true); return; }
+      if (v("password").length < 4) { say("Password must be at least 4 characters.", true); return; }
+      if (v("password") !== v("confirm")) { say("The two passwords do not match.", true); return; }
+      go.disabled = true; say("Creating your account...", false);
+      fetch("/api/register-highschool", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ full_name: v("full_name"), phone: v("phone"), school: v("school"), form_level: v("form_level"), password: v("password") }) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (!res.ok) { say(res.d.error || "Could not register.", true); go.disabled = false; return; }
+          say("Welcome! Opening your dashboard...", false);
+          setTimeout(function () { location.href = "highschool.html"; }, 600);
+        })
+        .catch(function () { say("Could not reach the server.", true); go.disabled = false; });
+    });
+  })();
+  </script>
+</body>
+</html>
