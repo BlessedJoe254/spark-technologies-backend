@@ -427,9 +427,11 @@ app.post("/api/submit-payment", requireLogin, requireRole("student"), async (req
 });
 
 // ---------- Trainer: students, class links, sessions, attendance, scores, notes ----------
-app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (req, res) => {
+app.get("/api/trainer/students", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
   try {
     const trainerId = req.session.user.id;
+    const hsAdminCourse = req.session.user.role === "admin" ? await hsCourse() : null;
+    const hsAdminCourseId = hsAdminCourse ? hsAdminCourse.id : 0;
     const [rows] = await pool.query(
       "SELECT c.id AS course_id, c.title AS course_title, u.id AS student_id, u.full_name, u.phone, e.has_paid, e.completed, " +
       "e.intake_id, i.name AS intake_name, i.start_date AS intake_start " +
@@ -437,8 +439,8 @@ app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (re
       "LEFT JOIN enrollments e ON e.course_id = c.id " +
       "LEFT JOIN intakes i ON i.id = e.intake_id " +
       "LEFT JOIN users u ON u.id = e.user_id " +
-      "WHERE c.trainer_id = ? ORDER BY c.title, i.start_date DESC, u.full_name",
-      [trainerId]
+      "WHERE (c.trainer_id = ? OR c.id = ?) ORDER BY c.title, i.start_date DESC, u.full_name",
+      [trainerId, hsAdminCourseId]
     );
 
     const groups = {};
@@ -506,7 +508,16 @@ app.get("/api/trainer/students", requireLogin, requireRole("trainer"), async (re
   }
 });
 
-async function assertOwnsCourse(trainerId, courseId) {
+async function assertOwnsCourse(userId, courseId) {
+  const [[usr]] = await pool.query("SELECT role FROM users WHERE id = ?", [userId]);
+  if (usr && usr.role === "admin") {
+    const [[crs]] = await pool.query("SELECT id FROM courses WHERE id = ?", [courseId]);
+    return !!crs;
+  }
+  return assertOwnsCourseBase(userId, courseId);
+}
+
+async function assertOwnsCourseBase(trainerId, courseId) {
   const [[course]] = await pool.query("SELECT trainer_id FROM courses WHERE id = ?", [courseId]);
   return course && course.trainer_id === trainerId;
 }
@@ -540,7 +551,7 @@ async function ensureCompletedSchema() {
   }
 }
 ensureCompletedSchema();
-app.post("/api/trainer/complete-student", requireLogin, requireRole("trainer"), async (req, res) => {
+app.post("/api/trainer/complete-student", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
   try {
     const { course_id, student_id, completed } = req.body;
     if (!course_id || !student_id) return res.status(400).json({ error: "Course and student are required." });
@@ -558,7 +569,7 @@ app.post("/api/trainer/complete-student", requireLogin, requireRole("trainer"), 
   }
 });
 
-app.post("/api/trainer/sessions", requireLogin, requireRole("trainer"), async (req, res) => {
+app.post("/api/trainer/sessions", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
   try {
     const { course_id } = req.body;
     if (!course_id) return res.status(400).json({ error: "Course is required." });
@@ -588,7 +599,7 @@ app.post("/api/trainer/sessions", requireLogin, requireRole("trainer"), async (r
   }
 });
 
-app.post("/api/trainer/attendance", requireLogin, requireRole("trainer"), async (req, res) => {
+app.post("/api/trainer/attendance", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
   try {
     const { session_id, records } = req.body;
     if (!session_id || !Array.isArray(records)) return res.status(400).json({ error: "Session and attendance records are required." });
@@ -612,7 +623,7 @@ app.post("/api/trainer/attendance", requireLogin, requireRole("trainer"), async 
   }
 });
 
-app.post("/api/trainer/scores", requireLogin, requireRole("trainer"), async (req, res) => {
+app.post("/api/trainer/scores", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
   try {
     const { course_id, student_id, assessment_type, score } = req.body;
     if (!course_id || !student_id || !["cat1", "cat2", "final"].includes(assessment_type) || score === undefined || score === null || score === "") {
@@ -632,7 +643,7 @@ app.post("/api/trainer/scores", requireLogin, requireRole("trainer"), async (req
   }
 });
 
-app.post("/api/trainer/notes", requireLogin, requireRole("trainer"), upload.single("file"), async (req, res) => {
+app.post("/api/trainer/notes", requireLogin, requireAnyRole(["trainer", "admin"]), upload.single("file"), async (req, res) => {
   try {
     const { course_id, title } = req.body;
     if (!course_id || !title || !req.file) {

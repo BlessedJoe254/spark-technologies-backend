@@ -330,7 +330,7 @@
       if (isStudent() && !me.is_hs) { location.href = "index.html"; return; }
       if (!isStudent() && !me.course_id) { document.getElementById("hs-classes").innerHTML = '<div class="hs-empty">The program course was not found.</div>'; return; }
       if (me.title) document.getElementById("hs-title").textContent = me.title;
-      if (me.role === "trainer") document.getElementById("hs-trainer-link").style.display = "block"; if (canEdit) { document.getElementById("hs-edit").style.display = "block"; document.getElementById("hs-feenote").style.display = "none"; }
+      if (me.role === "trainer" || me.role === "admin") document.getElementById("hs-trainer-link").style.display = "block"; if (canEdit) { document.getElementById("hs-edit").style.display = "block"; document.getElementById("hs-feenote").style.display = "none"; }
       else document.getElementById("hs-howpay").style.display = "block";
       loadPaid(function () { loadClasses(); });
       loadTable(); loadPayments();

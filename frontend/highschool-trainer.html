@@ -230,8 +230,8 @@
     j("/api/session").then(function (r) { return r.json(); }).then(function (s) {
       if (!s.user) { location.href = "login.html"; return null; }
       $("tr-hello").textContent = "Welcome, " + s.user.full_name;
-      if (s.user.role === "admin") { blocked('Admins manage the program from <a href="highschool.html">the program page</a>.'); return null; }
-      if (s.user.role !== "trainer") { location.href = "highschool.html"; return null; }
+      
+      if (s.user.role !== "trainer" && s.user.role !== "admin") { location.href = "highschool.html"; return null; }
       return j("/api/hs/me").then(function (r) { return r.json(); });
     }).then(function (m) {
       if (!m) return;
