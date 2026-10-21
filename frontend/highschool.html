@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>My Revision Program - Spark Technologies</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .hs-banner { background:linear-gradient(135deg,#0f1c16,#1f8a5b); color:#fff; border-radius:18px; padding:22px 24px; margin:0 0 22px 0; }
+    .hs-banner h2 { margin:0 0 4px; font-size:22px; color:#fff; } .hs-banner p { margin:0; opacity:.85; font-size:14px; }
+    .hs-h { font-size:18px; margin:26px 0 6px; color:#111; }
+    .hs-sub { font-size:13px; color:#666; margin:0 0 12px; }
+    .hs-card { background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:14px; padding:15px 18px; margin:0 0 10px 0; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+    .hs-card b { color:#111; } .hs-meta { font-size:13px; color:#555; margin-top:2px; }
+    .hs-badge { display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; margin-left:8px; vertical-align:middle; }
+    .hs-badge.live { background:#e0261b; color:#fff; } .hs-badge.scheduled { background:#e6efe9; color:#1b5e3f; }
+    .hs-empty { font-size:14px; color:#666; padding:6px 0; }
+    .hs-wrap { overflow-x:auto; }
+    .tt { width:100%; min-width:760px; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid rgba(0,0,0,.14); border-radius:14px; overflow:hidden; font-size:13px; color:#222; }
+    .tt th { background:#1f8a5b; color:#fff; padding:12px 10px; font-size:12px; letter-spacing:.8px; text-align:center; border-left:1px solid rgba(255,255,255,.25); }
+    .tt th:first-child { border-left:0; width:110px; }
+    .tt td { padding:10px; border-top:1px solid rgba(0,0,0,.09); border-left:1px solid rgba(0,0,0,.07); vertical-align:top; height:62px; text-align:center; }
+    .tt td:first-child { border-left:0; background:#eef5f1; font-weight:700; color:#1f8a5b; white-space:nowrap; }
+    .tt tr:nth-child(even) td:not(:first-child) { background:#fafcfb; }
+    .tt .none { color:#c2cdc7; }
+    .tt-c { text-align:left; background:#e6efe9; border-left:3px solid #1f8a5b; border-radius:8px; padding:7px 9px; margin:0 0 6px; }
+    .tt-c b { display:block; color:#111; font-size:13px; } .tt-c span { display:block; font-size:12px; color:#555; }
+    .tt-del { float:right; background:none; border:0; color:#b3261e; cursor:pointer; font-size:11px; padding:0; }
+    .hs-edit { display:none; background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:14px; padding:16px; margin:0 0 16px 0; }
+    .hs-edit .row { display:flex; flex-wrap:wrap; gap:8px; }
+    .hs-edit input, .hs-edit select { flex:1 1 140px; padding:9px 11px; border:1px solid rgba(0,0,0,.25); border-radius:10px; font:inherit; background:#fff; color:#111; min-width:0; }
+    #hs-msg { font-size:13px; margin-top:8px; }
+    .hs-ptable { width:100%; border-collapse:collapse; background:#fff; border:1px solid rgba(0,0,0,.12); font-size:13px; color:#222; }
+    .hs-ptable th { text-align:left; background:#eef5f1; padding:9px 12px; font-size:12px; letter-spacing:.4px; }
+    .hs-ptable td { padding:9px 12px; border-top:1px solid rgba(0,0,0,.08); }
+    .hs-del { background:none; border:0; color:#b3261e; cursor:pointer; font-size:12px; }
+    #hs-paysec, #hs-histsec { display:none; }
+    #hs-howpay { display:none; background:#fff; border:2px solid #1f8a5b; border-radius:16px; padding:18px 20px; margin:6px 0 4px; }
+    #hs-howpay h3 { margin:0 0 8px; font-size:18px; color:#111; }
+    #hs-howpay ol { margin:0 0 12px; padding-left:20px; font-size:14px; color:#333; line-height:1.7; }
+    #hs-howpay img { display:block; width:100%; max-width:340px; border-radius:12px; border:1px solid rgba(0,0,0,.12); }
+    #hs-howpay .cap { font-size:12px; color:#666; margin-top:6px; }
+    #pay-modal { display:none; position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.6); align-items:center; justify-content:center; padding:16px; }
+    .pay-card { background:#fff; border-radius:18px; padding:22px; width:100%; max-width:380px; max-height:92vh; overflow-y:auto; color:#14201a; }
+    .pay-card h3 { margin:0 0 4px; font-size:19px; } .pay-card p { margin:0 0 10px; font-size:13.5px; color:#444; line-height:1.45; }
+    .pay-card input { width:100%; padding:12px 13px; border:1px solid #c9d6cf; border-radius:11px; font:inherit; text-transform:uppercase; letter-spacing:1px; }
+    .pay-card input:focus { outline:2px solid #1f8a5b; border-color:#1f8a5b; }
+    .pay-btns { display:flex; gap:8px; margin-top:12px; } .pay-btns .btn { flex:1; }
+    #pay-msg { font-size:13px; margin-top:8px; min-height:16px; }
+  </style>
+</head>
+<body>
+  <button class="sidebar-toggle" aria-label="Toggle menu">&#9776;</button>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar__logo"><img src="assets/logo-sidebar.png" alt="Spark Technologies"></div>
+      <nav>
+        <span class="nav-label">MY PROGRAM</span>
+        <a class="nav-link active" href="highschool.html"><span class="dot"></span> Classes &amp; Timetable</a>
+        <span class="nav-label">ACCOUNT</span>
+        <a class="nav-link" href="#" id="hs-logout"><span class="dot"></span> Log out</a>
+      </nav>
+      <div class="sidebar__footer">(c) 2026 Spark Technologies</div>
+    </aside>
+    <main class="main">
+      <div class="topbar"><div class="topbar__title"><p class="eyebrow">HOLIDAY PROGRAM</p><h1 id="hs-title">My revision program</h1></div></div>
+      <div class="hs-banner"><h2 id="hs-hello">Welcome</h2><p>Your live classes and weekly timetable are shown here.</p></div>
+
+      <h2 class="hs-h">Live classes</h2>
+      <p class="hs-sub" id="hs-feenote">Each live lesson costs KES 50. You will be asked for your M-Pesa code when you join.</p>
+      <div id="hs-classes"><div class="hs-empty">Loading...</div></div>
+
+      <div id="hs-howpay">
+        <h3>How to pay (KES 50 per lesson)</h3>
+        <ol>
+          <li>Open M-Pesa, then Lipa na M-Pesa, then Paybill.</li>
+          <li>Enter the Paybill number and account number shown in the picture below.</li>
+          <li>Enter the amount KES 50 and send.</li>
+          <li>Copy the confirmation code from the M-Pesa message.</li>
+          <li>Tap <b>Join class</b> on a lesson above and paste the code. The admin will approve it.</li>
+        </ol>
+        <a href="assets/payment-instructions.png" target="_blank" rel="noopener"><img src="assets/payment-instructions.png" alt="Paybill and account number" onerror="this.parentNode.style.display='none'"></a>
+        <div class="cap">Tap the picture to enlarge it.</div>
+      </div>
+
+      <h2 class="hs-h">Weekly timetable</h2>
+      <p class="hs-sub">Monday to Friday</p>
+      <div class="hs-edit" id="hs-edit">
+        <div class="row">
+          <select id="t-day"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option></select>
+          <input id="t-date" type="date" title="Date (optional, sets the day)">
+          <select id="t-slot"><option value="08:00|09:00">Lesson 1: 8:00 - 9:00</option><option value="09:30|10:30">Lesson 2: 9:30 - 10:30</option><option value="11:00|12:00">Lesson 3: 11:00 - 12:00</option><option value="14:00|15:00">Lesson 4: 2:00 - 3:00</option><option value="15:30|16:00">Lesson 5: 3:30 - 4:00</option></select>
+          <select id="t-subject"><option value="">Subject</option><option value="English">English - Christine Njoroge</option><option value="Mathematics">Mathematics - Roy Njuki</option><option value="Biology">Biology - Geoffrey Kimani</option><option value="Chemistry">Chemistry - Henry Muigai</option><option value="Physics">Physics - Maryanne Atieno</option></select>
+          
+          <input id="t-notes" type="text" placeholder="Notes (optional)" maxlength="300">
+          <button class="btn btn-primary" id="t-add" type="button">Add to timetable</button>
+        </div>
+        <div id="hs-msg"></div>
+      </div>
+      <div class="hs-wrap" id="hs-table"><div class="hs-empty">Loading...</div></div>
+
+      <div id="hs-paysec">
+        <h2 class="hs-h">Lesson payments</h2>
+        <p class="hs-sub" id="hs-paysum"></p>
+        <div class="hs-wrap" id="hs-paybox"></div>
+      </div>
+
+      <div id="hs-histsec">
+        <h2 class="hs-h">Lesson history</h2>
+        <p class="hs-sub">Classes that have ended, and the teacher who taught them. Only the admin sees this.</p>
+        <div class="hs-wrap" id="hs-hist"></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="pay-modal">
+    <div class="pay-card">
+      <h3>Pay KES 50 to join</h3>
+      <p id="pay-title" style="font-weight:600;color:#111;"></p>
+      <p>Already paid KES 50 using the Paybill details on this page? Paste your M-Pesa confirmation code below.</p>
+      <input id="pay-code" type="text" placeholder="M-Pesa code, e.g. QJ7ABC1234" maxlength="14" autocomplete="off">
+      <div id="pay-msg"></div>
+      <div class="pay-btns">
+        <button class="btn btn-ghost" id="pay-cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="pay-go" type="button">Submit code</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var tg = document.querySelector(".sidebar-toggle"), sb = document.querySelector(".sidebar");
+    if (tg && sb) tg.addEventListener("click", function () { sb.classList.toggle("open"); });
+    var DAYS = ["", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
+    var me = null, canEdit = false, paid = {}, classMap = {}, fee = 50, payClass = null;
+    var SLOTS = ["08:00-09:00", "09:30-10:30", "11:00-12:00", "14:00-15:00", "15:30-16:00"];
+    var TEACHERS = { "English": "Christine Njoroge", "Mathematics": "Roy Njuki", "Biology": "Geoffrey Kimani", "Chemistry": "Henry Muigai", "Physics": "Maryanne Atieno" };
+    var SLOT_LABELS = { "08:00-09:00": "8:00 - 9:00", "09:30-10:30": "9:30 - 10:30", "11:00-12:00": "11:00 - 12:00", "14:00-15:00": "2:00 - 3:00", "15:30-16:00": "3:30 - 4:00" };
+    function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+    function j(url, opt) { return fetch(url, Object.assign({ credentials: "include" }, opt || {})); }
+    function isStudent() { return me && me.role === "student"; }
+    function fmtWhen(v) { var w = new Date(v); return isNaN(w.getTime()) ? "" : w.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
+
+    document.getElementById("hs-logout").addEventListener("click", function (e) {
+      e.preventDefault();
+      j("/api/logout", { method: "POST" }).then(function () { location.href = "highschool-login.html"; });
+    });
+
+    function loadMe(cb) {
+      j("/api/hs/me").then(function (r) { return r.json(); }).then(function (d) { me = d; canEdit = !!d.can_edit; if (cb) cb(); });
+    }
+    function loadPaid(cb) {
+      if (!isStudent()) { if (cb) cb(); return; }
+      j("/api/hs/my-payments").then(function (r) { return r.ok ? r.json() : { status: {} }; }).then(function (d) {
+        paid = d.status || {};
+        if (d.fee) { fee = d.fee; document.getElementById("hs-feenote").textContent = "Each live lesson costs KES " + fee + ". You will be asked for your M-Pesa code when you join."; }
+        if (cb) cb();
+      });
+    }
+
+    function studentAct(c) {
+      var st = paid[c.id];
+      if (st === "approved") {
+        return c.status === "live"
+          ? '<button type="button" class="btn btn-primary" data-join="' + c.id + '">Join class</button>'
+          : '<span class="hs-meta">Payment approved. Join opens when your teacher starts</span>';
+      }
+      if (st === "pending") return '<span class="hs-meta">Payment awaiting admin approval</span>';
+      var lbl = st === "rejected" ? "Code rejected. Send a new code" : (c.status === "live" ? "Join class (KES " + fee + ")" : "Pay KES " + fee + " now");
+      return '<button type="button" class="btn btn-primary" data-join="' + c.id + '">' + lbl + "</button>";
+    }
+
+    function loadClasses() {
+      j("/api/hs/classes").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        var box = document.getElementById("hs-classes");
+        if (!d) { box.innerHTML = '<div class="hs-empty">Could not load classes.</div>'; return; }
+        var active = d.classes.filter(function (c) { return c.status === "live" || c.status === "scheduled"; })
+          .sort(function (a, b) { return (a.status === "live" ? 0 : 1) - (b.status === "live" ? 0 : 1) || String(a.scheduled_at).localeCompare(String(b.scheduled_at)); }).slice(0, 10);
+        classMap = {};
+        if (!active.length) { box.innerHTML = '<div class="hs-empty">No classes scheduled yet. Check back soon.</div>'; }
+        else box.innerHTML = active.map(function (c) {
+          classMap[c.id] = c;
+          var act;
+          if (canEdit) act = '<a class="btn btn-primary" href="class-room.html?id=' + c.id + '">' + (c.status === "live" ? "Rejoin" : "Start class") + "</a>";
+          else act = studentAct(c);
+          return '<div class="hs-card"><div><b>' + esc(c.title) + '</b><span class="hs-badge ' + esc(c.status) + '">' + (c.status === "live" ? "Live now" : "Upcoming") + '</span><div class="hs-meta">' + esc(fmtWhen(c.scheduled_at)) + (c.trainer_name && me && me.role === "admin" ? " &middot; Teacher: " + esc(c.trainer_name) : "") + (c.notes ? " &middot; " + esc(c.notes) : "") + "</div></div><div>" + act + "</div></div>";
+        }).join("");
+
+        if (me && me.role === "admin") {
+          var ended = d.classes.filter(function (c) { return c.status === "ended"; });
+          document.getElementById("hs-histsec").style.display = "block";
+          document.getElementById("hs-hist").innerHTML = ended.length
+            ? '<table class="hs-ptable"><thead><tr><th>Lesson</th><th>Taught by</th><th>Date and time</th></tr></thead><tbody>' +
+              ended.map(function (c) { return "<tr><td>" + esc(c.title) + "</td><td><b>" + esc(c.trainer_name || "-") + "</b></td><td>" + esc(fmtWhen(c.scheduled_at)) + "</td></tr>"; }).join("") + "</tbody></table>"
+            : '<div class="hs-empty">No lessons have ended yet.</div>';
+        }
+      });
+    }
+
+    document.getElementById("hs-classes").addEventListener("click", function (e) {
+      var id = e.target.getAttribute && e.target.getAttribute("data-join");
+      if (!id) return;
+      if (paid[id] === "approved") { location.href = "class-room.html?id=" + id; return; }
+      payClass = id;
+      document.getElementById("pay-title").textContent = classMap[id] ? classMap[id].title : "";
+      document.getElementById("pay-code").value = "";
+      document.getElementById("pay-msg").textContent = "";
+      document.getElementById("pay-modal").style.display = "flex";
+      document.getElementById("pay-code").focus();
+    });
+
+    function closePay() { document.getElementById("pay-modal").style.display = "none"; payClass = null; }
+    document.getElementById("pay-cancel").addEventListener("click", closePay);
+    document.getElementById("pay-go").addEventListener("click", function () {
+      var msg = document.getElementById("pay-msg"), btn = document.getElementById("pay-go");
+      var code = document.getElementById("pay-code").value.replace(/\s/g, "").toUpperCase();
+      if (code.length !== 10) { msg.style.color = "#b3261e"; msg.textContent = "Enter the 10-character M-Pesa code."; return; }
+      btn.disabled = true; msg.style.color = "#555"; msg.textContent = "Checking...";
+      j("/api/hs/classes/" + payClass + "/pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: code }) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (!res.ok) { msg.style.color = "#b3261e"; msg.textContent = res.d.error || "Could not save your code."; btn.disabled = false; return; }
+          btn.disabled = false; msg.style.color = "#1b5e3f"; msg.textContent = "Code received. Waiting for admin approval.";
+          setTimeout(function () { closePay(); loadPaid(loadClasses); }, 1800);
+        })
+        .catch(function () { msg.style.color = "#b3261e"; msg.textContent = "Could not reach the server."; btn.disabled = false; });
+    });
+
+    function ownerSpan(e) { var t = TEACHERS[e.subject] || e.teacher; return t ? "<span>" + esc(t) + "</span>" : ""; }
+    function fmtDate(s) {
+      if (!s) return "";
+      var p = String(s).split("-");
+      var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+      return isNaN(d.getTime()) ? "" : d.toLocaleDateString([], { day: "numeric", month: "short" });
+    }
+
+    function loadTable() {
+      j("/api/hs/timetable").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        var box = document.getElementById("hs-table");
+        if (!d) { box.innerHTML = '<div class="hs-empty">Could not load the timetable.</div>'; return; }
+        var entries = (d.entries || []).filter(function (e) { return e.day_no >= 1 && e.day_no <= 5 && SLOTS.indexOf(e.start_time + "-" + e.end_time) >= 0; });
+        var slots = SLOTS.slice();
+        var blank = !entries.length;
+        var html = '<table class="tt"><thead><tr><th>TIME</th>';
+        for (var n = 1; n <= 5; n++) html += "<th>" + DAYS[n] + "</th>";
+        html += "</tr></thead><tbody>";
+        if (false) {
+        } else {
+          slots.forEach(function (k) {
+            html += "<tr><td>" + esc(SLOT_LABELS[k] || k) + "</td>";
+            for (var day = 1; day <= 5; day++) {
+              var here = entries.filter(function (e) { return e.day_no === day && (e.start_time + "-" + e.end_time) === k; });
+              html += "<td>" + (here.length ? here.map(function (e) {
+                return '<div class="tt-c">' + (canEdit ? '<button class="tt-del" data-del="' + e.id + '">Delete</button>' : "") +
+                  "<b>" + esc(e.subject) + "</b>" + ownerSpan(e) +
+                  (e.class_date ? "<span>" + esc(fmtDate(e.class_date)) + "</span>" : "") + (e.notes ? "<span>" + esc(e.notes) + "</span>" : "") + "</div>";
+              }).join("") : '<span class="none">-</span>') + "</td>";
+            }
+            html += "</tr>";
+          });
+        }
+        html += "</tbody></table>";
+        if (blank) html += '<div class="hs-empty" style="margin-top:10px;">The timetable has not been posted yet.</div>';
+        box.innerHTML = html;
+      });
+    }
+
+    document.getElementById("hs-table").addEventListener("click", function (e) {
+      var id = e.target.getAttribute && e.target.getAttribute("data-del");
+      if (!id || !confirm("Delete this timetable entry?")) return;
+      j("/api/hs/timetable/" + id + "/delete", { method: "POST" }).then(loadTable);
+    });
+
+    document.getElementById("t-date").addEventListener("change", function () {
+      var v = this.value, msg = document.getElementById("hs-msg");
+      if (!v) return;
+      var wd = new Date(v + "T00:00:00").getDay();
+      if (wd >= 1 && wd <= 5) { document.getElementById("t-day").value = String(wd); msg.textContent = ""; }
+      else { msg.style.color = "#b3261e"; msg.textContent = "Classes run Monday to Friday. Pick a weekday date."; }
+    });
+
+    document.getElementById("t-add").addEventListener("click", function () {
+      var msg = document.getElementById("hs-msg");
+      var body = { day_no: document.getElementById("t-day").value, class_date: document.getElementById("t-date").value, start_time: (document.getElementById("t-slot").value.split("|")[0] || ""), end_time: (document.getElementById("t-slot").value.split("|")[1] || ""),
+        subject: document.getElementById("t-subject").value.trim(), teacher: (TEACHERS[document.getElementById("t-subject").value] || ""), notes: document.getElementById("t-notes").value.trim() };
+      j("/api/hs/timetable/add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          msg.style.color = res.ok ? "#1b5e3f" : "#b3261e";
+          msg.textContent = res.ok ? "Added to the timetable." : (res.d.error || "Could not add.");
+          if (res.ok) { document.getElementById("t-subject").value = ""; document.getElementById("t-notes").value = ""; loadTable(); }
+        });
+    });
+
+    function loadPayments() {
+      if (!canEdit) return;
+      j("/api/hs/payments").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d) return;
+        document.getElementById("hs-paysec").style.display = "block";
+        var pend = d.payments.filter(function (p) { return p.status === "pending"; }).length;
+        var total = d.payments.filter(function (p) { return p.status === "approved"; }).reduce(function (s, p) { return s + Number(p.amount || 0); }, 0);
+        document.getElementById("hs-paysum").textContent = pend + " awaiting approval | " + d.payments.length + " payment" + (d.payments.length === 1 ? "" : "s") + " in total | KES " + total + " approved. Compare each code with your M-Pesa statement before approving.";
+        if (!d.payments.length) { document.getElementById("hs-paybox").innerHTML = '<div class="hs-empty">No lesson payments yet.</div>'; return; }
+        var lab = { pending: "Pending", approved: "Approved", rejected: "Rejected" };
+        document.getElementById("hs-paybox").innerHTML = '<table class="hs-ptable"><thead><tr><th>Student</th><th>Phone</th><th>Lesson</th><th>M-Pesa code</th><th>Time</th><th>Status</th><th></th></tr></thead><tbody>' +
+          d.payments.map(function (p) {
+            var t = new Date(p.created_at), act = "";
+            if (d.can_approve) {
+              if (p.status !== "approved") act += '<button class="hs-del" style="color:#1b5e3f;margin-right:8px;" data-act="approve" data-id="' + p.id + '">Approve</button>';
+              if (p.status !== "rejected") act += '<button class="hs-del" data-act="reject" data-id="' + p.id + '">Reject</button>';
+            }
+            return "<tr><td>" + esc(p.full_name) + "</td><td>" + esc(p.phone) + "</td><td>" + esc(p.class_title) + "</td><td><b>" + esc(p.code) + "</b></td><td>" + esc(isNaN(t.getTime()) ? "" : t.toLocaleString()) + "</td><td>" + (lab[p.status] || esc(p.status)) + "</td><td>" + act + "</td></tr>";
+          }).join("") + "</tbody></table>";
+      });
+    }
+    document.getElementById("hs-paybox").addEventListener("click", function (e) {
+      var act = e.target.getAttribute && e.target.getAttribute("data-act");
+      var id = e.target.getAttribute && e.target.getAttribute("data-id");
+      if (!act || !id) return;
+      if (!confirm((act === "approve" ? "Approve" : "Reject") + " this payment?")) return;
+      j("/api/hs/payments/" + id + "/" + act, { method: "POST" }).then(loadPayments);
+    });
+
+    j("/api/session").then(function (r) { return r.json(); }).then(function (s) {
+      if (!s.user) { location.href = "highschool-login.html"; return null; }
+      document.getElementById("hs-hello").textContent = "Welcome, " + s.user.full_name;
+      return new Promise(function (ok) { loadMe(ok); });
+    }).then(function () {
+      if (!me) return;
+      if (isStudent() && !me.is_hs) { location.href = "index.html"; return; }
+      if (!isStudent() && !me.course_id) { document.getElementById("hs-classes").innerHTML = '<div class="hs-empty">The program course was not found.</div>'; return; }
+      if (me.title) document.getElementById("hs-title").textContent = me.title;
+      if (canEdit) { document.getElementById("hs-edit").style.display = "block"; document.getElementById("hs-feenote").style.display = "none"; }
+      else document.getElementById("hs-howpay").style.display = "block";
+      loadPaid(function () { loadClasses(); });
+      loadTable(); loadPayments();
+      setInterval(function () { loadPaid(loadClasses); loadPayments(); loadTable(); }, 20000);
+    });
+  })();
+  </script>
+  <script src="/js/pwa.js"></script>
+</body>
+</html>

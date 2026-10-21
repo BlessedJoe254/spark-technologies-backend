@@ -2175,7 +2175,11 @@ app.post("/api/classes/:id/join", requireLogin, async (req, res) => {
         "SELECT e.has_paid, c.fee_kes FROM enrollments e JOIN courses c ON c.id = e.course_id " +
         "WHERE e.user_id = ? AND e.course_id = ?", [u.id, cls.course_id]);
       if (!enr) return res.status(403).json({ error: "You are not enrolled in this course." });
-      if (!enr.has_paid && enr.fee_kes !== null) return res.status(403).json({ error: "Please complete payment to join this class." });
+      const hsc = await hsCourse();
+      if (hsc && hsc.id === cls.course_id) {
+        const [pp] = await pool.query("SELECT id FROM hs_class_payments WHERE class_id = ? AND user_id = ?", [cls.id, u.id]);
+        if (!pp.length) return res.status(402).json({ error: "Please pay KES 50 for this lesson and enter the M-Pesa code to join." });
+      } else if (!enr.has_paid && enr.fee_kes !== null) return res.status(403).json({ error: "Please complete payment to join this class." });
       if (cls.status !== "live") return res.status(409).json({ error: "The trainer has not started this class yet. Try again soon." });
     } else {
       return res.status(403).json({ error: "You are not authorized to join." });
@@ -2463,6 +2467,303 @@ app.get("/api/admin/reports/all-users.pdf", requireLogin, requireRole("admin"), 
   } catch (err) {
     console.error("All users PDF error:", err.message);
     if (!res.headersSent) res.status(500).json({ error: "Could not create the PDF right now." });
+  }
+});
+
+// ---------- High School Holiday Revision Program ----------
+const HS_LIKE = "High School Holiday Revision%";
+async function ensureHsTables() {
+  try {
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS hs_students (user_id INT PRIMARY KEY, school VARCHAR(150), form_level VARCHAR(40))"
+    );
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS hs_timetable (" +
+      "id INT AUTO_INCREMENT PRIMARY KEY, course_id INT NOT NULL, day_no TINYINT NOT NULL, " +
+      "start_time VARCHAR(5) NOT NULL, end_time VARCHAR(5) NOT NULL, subject VARCHAR(120) NOT NULL, " +
+      "teacher VARCHAR(120), notes VARCHAR(300), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, INDEX (course_id))"
+    );
+  } catch (err) { console.warn("HS tables setup failed:", err.message); }
+}
+ensureHsTables();
+
+async function hsCourse() {
+  const [rows] = await pool.query("SELECT id, title, trainer_id, fee_kes FROM courses WHERE title LIKE ? ORDER BY id LIMIT 1", [HS_LIKE]);
+  return rows[0] || null;
+}
+
+function hsPhoneKey(p) {
+  let d = String(p || "").replace(/\D/g, "");
+  if (d.startsWith("254") && d.length === 12) d = "0" + d.slice(3);
+  else if (d.length === 9 && /^[17]/.test(d)) d = "0" + d;
+  return /^0\d{9}$/.test(d) ? d : null;
+}
+function hsEmailFor(key) { return "hs." + key + "@students.spark.local"; }
+const HS_LEVELS = ["Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "Form 1", "Form 2", "Form 3"];
+
+app.post("/api/register-highschool", async (req, res) => {
+  try {
+    const { full_name, phone, school, form_level, password } = req.body;
+    const name = String(full_name || "").trim();
+    const sch = String(school || "").trim();
+    const lvl = String(form_level || "").trim();
+    const key = hsPhoneKey(phone);
+    if (!name || !sch || !lvl || !password) return res.status(400).json({ error: "Please fill in all the fields." });
+    if (!key) return res.status(400).json({ error: "Enter a valid phone number, for example 0712 345 678." });
+    if (!HS_LEVELS.includes(lvl)) return res.status(400).json({ error: "Please choose your class level." });
+    if (String(password).length < 4) return res.status(400).json({ error: "Password must be at least 4 characters." });
+    const course = await hsCourse();
+    if (!course) return res.status(404).json({ error: "The High School Holiday Revision Program is not open for registration yet." });
+
+    const email = hsEmailFor(key);
+    const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (existing.length > 0) return res.status(409).json({ error: "An account with this phone number already exists. Please log in instead." });
+
+    const hash = await bcrypt.hash(String(password), 10);
+    const [result] = await pool.query(
+      "INSERT INTO users (full_name, email, phone, password_hash, role) VALUES (?, ?, ?, ?, 'student')",
+      [name, email, key, hash]
+    );
+    await pool.query("INSERT INTO hs_students (user_id, school, form_level) VALUES (?, ?, ?)", [result.insertId, sch.slice(0, 150), lvl]);
+    await pool.query("INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)", [result.insertId, course.id]);
+
+    req.session.user = { id: result.insertId, full_name: name, email: email, role: "student" };
+    logActivity(result.insertId, name, "register", name + " joined the High School Holiday Revision Program.");
+    res.json({ success: true });
+  } catch (err) {
+    console.error("HS register error:", err.message);
+    res.status(500).json({ error: "Could not create your account right now. Please try again." });
+  }
+});
+
+app.post("/api/login-highschool", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+    const key = hsPhoneKey(phone);
+    if (!key || !password) return res.status(400).json({ error: "Enter your phone number and password." });
+    const [rows] = await pool.query(
+      "SELECT u.id, u.full_name, u.email, u.password_hash, u.role, u.is_active " +
+      "FROM users u JOIN hs_students h ON h.user_id = u.id WHERE u.email = ? OR u.phone = ? LIMIT 1",
+      [hsEmailFor(key), key]
+    );
+    const bad = { error: "Wrong phone number or password." };
+    if (!rows.length) return res.status(401).json(bad);
+    const u = rows[0];
+    if (!(await bcrypt.compare(String(password), u.password_hash))) return res.status(401).json(bad);
+    if (u.is_active === 0) return res.status(403).json({ error: "This account has been deactivated. Please contact the admin." });
+    req.session.user = { id: u.id, full_name: u.full_name, email: u.email, role: u.role };
+    res.json({ success: true });
+  } catch (err) {
+    console.error("HS login error:", err.message);
+    res.status(500).json({ error: "Could not log in right now. Please try again." });
+  }
+});
+
+app.get("/api/hs/me", requireLogin, async (req, res) => {
+  try {
+    const u = req.session.user;
+    const course = await hsCourse();
+    if (!course) return res.json({ is_hs: false, only_hs: false });
+    if (u.role !== "student") {
+      return res.json({ role: u.role, is_hs: false, only_hs: false, course_id: course.id, title: course.title, can_edit: u.role === "admin" || course.trainer_id === u.id });
+    }
+    const [rows] = await pool.query("SELECT course_id, has_paid, payment_code FROM enrollments WHERE user_id = ?", [u.id]);
+    const mine = rows.find(r => r.course_id === course.id);
+    res.json({
+      role: "student", is_hs: !!mine, only_hs: !!mine && rows.length === 1,
+      course_id: course.id, title: course.title, can_edit: false,
+      unlocked: !!mine && (!!mine.has_paid || course.fee_kes === null), payment_code: mine ? mine.payment_code : null, fee_kes: course.fee_kes
+    });
+  } catch (err) {
+    console.error("HS me error:", err.message);
+    res.status(500).json({ error: "Could not load your details." });
+  }
+});
+
+app.get("/api/hs/timetable", requireLogin, async (req, res) => {
+  try {
+    const u = req.session.user;
+    const course = await hsCourse();
+    if (!course) return res.json({ entries: [] });
+    if (u.role === "student") {
+      const [enr] = await pool.query("SELECT 1 FROM enrollments WHERE user_id = ? AND course_id = ?", [u.id, course.id]);
+      if (!enr.length) return res.status(403).json({ error: "You are not enrolled in this program." });
+    }
+    const [entries] = await pool.query(
+      "SELECT id, day_no, DATE_FORMAT(class_date, '%Y-%m-%d') AS class_date, start_time, end_time, subject, teacher, notes FROM hs_timetable WHERE course_id = ? ORDER BY start_time, day_no", [course.id]);
+    res.json({ entries });
+  } catch (err) {
+    console.error("HS timetable error:", err.message);
+    res.status(500).json({ error: "Could not load the timetable." });
+  }
+});
+
+async function hsCanEdit(u) {
+  const course = await hsCourse();
+  if (!course) return null;
+  if (u.role === "admin" || (u.role === "trainer" && course.trainer_id === u.id)) return course;
+  return null;
+}
+
+async function ensureHsTimetableDate() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hs_timetable' AND COLUMN_NAME = 'class_date'"
+    );
+    if (cols.length === 0) await pool.query("ALTER TABLE hs_timetable ADD COLUMN class_date DATE NULL");
+  } catch (err) { console.warn("hs_timetable class_date setup failed:", err.message); }
+}
+ensureHsTables().then(ensureHsTimetableDate);
+
+app.post("/api/hs/timetable/add", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const course = await hsCanEdit(req.session.user);
+    if (!course) return res.status(403).json({ error: "Only this program's trainer or the admin can edit the timetable." });
+    const { day_no, class_date, start_time, end_time, subject, teacher, notes } = req.body;
+    const tre = /^\d{2}:\d{2}$/;
+    let day = Number(day_no);
+    let dateVal = null;
+    if (class_date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(class_date)) return res.status(400).json({ error: "Enter a valid date." });
+      const dt = new Date(class_date + "T00:00:00Z");
+      if (isNaN(dt.getTime())) return res.status(400).json({ error: "Enter a valid date." });
+      const wd = dt.getUTCDay();
+      if (wd === 0 || wd === 6) return res.status(400).json({ error: "Classes run Monday to Friday. Pick a weekday date." });
+      day = wd;
+      dateVal = class_date;
+    }
+    if (!(day >= 1 && day <= 5)) return res.status(400).json({ error: "Choose a day from Monday to Friday." });
+    if (!tre.test(start_time || "") || !tre.test(end_time || "") || !subject || !String(subject).trim()) {
+      return res.status(400).json({ error: "Enter the start and end time and the lesson." });
+    }
+    if (end_time <= start_time) return res.status(400).json({ error: "End time must be after the start time." });
+    const HS_SLOTS = ["08:00-09:00", "09:30-10:30", "11:00-12:00", "14:00-15:00", "15:30-16:00"];
+    if (!HS_SLOTS.includes(start_time + "-" + end_time)) return res.status(400).json({ error: "Choose one of the five lesson times." });
+    const HS_TEACHERS = { "English": "Christine Njoroge", "Mathematics": "Roy Njuki", "Biology": "Geoffrey Kimani", "Chemistry": "Henry Muigai", "Physics": "Maryanne Atieno" };
+    const subjectName = String(subject).trim();
+    if (!HS_TEACHERS[subjectName]) return res.status(400).json({ error: "Choose one of the five subjects." });
+    await pool.query(
+      "INSERT INTO hs_timetable (course_id, day_no, class_date, start_time, end_time, subject, teacher, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [course.id, day, dateVal, start_time, end_time, String(subject).trim().slice(0, 120), HS_TEACHERS[subjectName], notes ? String(notes).trim().slice(0, 300) : null]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("HS timetable add error:", err.message);
+    res.status(500).json({ error: "Could not save that entry." });
+  }
+});
+
+app.post("/api/hs/timetable/:id/delete", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const course = await hsCanEdit(req.session.user);
+    if (!course) return res.status(403).json({ error: "Only this program's trainer or the admin can edit the timetable." });
+    await pool.query("DELETE FROM hs_timetable WHERE id = ? AND course_id = ?", [req.params.id, course.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("HS timetable delete error:", err.message);
+    res.status(500).json({ error: "Could not delete that entry." });
+  }
+});
+
+app.get("/api/hs/classes", requireLogin, async (req, res) => {
+  try {
+    const u = req.session.user;
+    const course = await hsCourse();
+    if (!course) return res.json({ classes: [] });
+    if (u.role === "student") {
+      const [enr] = await pool.query("SELECT 1 FROM enrollments WHERE user_id = ? AND course_id = ?", [u.id, course.id]);
+      if (!enr.length) return res.status(403).json({ error: "You are not enrolled in this program." });
+    } else if (!(await hsCanEdit(u))) {
+      return res.status(403).json({ error: "Not allowed." });
+    }
+    const [classes] = await pool.query(
+      (u.role === "admin" ? "SELECT lc.id, lc.title, lc.scheduled_at, lc.status, lc.notes, (SELECT full_name FROM users WHERE id = lc.trainer_id) AS trainer_name FROM live_classes lc WHERE lc.course_id = ? AND lc.status <> 'cancelled' ORDER BY lc.scheduled_at DESC LIMIT 80" : "SELECT id, title, scheduled_at, status, notes FROM live_classes WHERE course_id = ? AND status IN ('scheduled', 'live') ORDER BY scheduled_at ASC LIMIT 30"),
+      [course.id]
+    );
+    res.json({ classes });
+  } catch (err) {
+    console.error("HS classes error:", err.message);
+    res.status(500).json({ error: "Could not load classes." });
+  }
+});
+
+// ---------- High school: KES 50 per lesson ----------
+const HS_LESSON_FEE = 50;
+async function ensureHsPayTable() {
+  try {
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS hs_class_payments (" +
+      "id INT AUTO_INCREMENT PRIMARY KEY, class_id INT NOT NULL, user_id INT NOT NULL, code VARCHAR(20) NOT NULL, " +
+      "amount INT NOT NULL DEFAULT 50, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+      "UNIQUE KEY uq_class_user (class_id, user_id), UNIQUE KEY uq_code (code))"
+    );
+  } catch (err) { console.warn("hs_class_payments setup failed:", err.message); }
+}
+ensureHsPayTable();
+
+app.get("/api/hs/my-payments", requireLogin, async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT class_id FROM hs_class_payments WHERE user_id = ?", [req.session.user.id]);
+    res.json({ fee: HS_LESSON_FEE, ids: rows.map(r => r.class_id) });
+  } catch (err) { res.json({ fee: HS_LESSON_FEE, ids: [] }); }
+});
+
+app.post("/api/hs/classes/:id/pay", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    const u = req.session.user;
+    const course = await hsCourse();
+    if (!course) return res.status(404).json({ error: "Program not found." });
+    const [[cls]] = await pool.query("SELECT id, course_id, status FROM live_classes WHERE id = ?", [req.params.id]);
+    if (!cls || cls.course_id !== course.id) return res.status(404).json({ error: "Class not found." });
+    const [enr] = await pool.query("SELECT 1 FROM enrollments WHERE user_id = ? AND course_id = ?", [u.id, course.id]);
+    if (!enr.length) return res.status(403).json({ error: "You are not enrolled in this program." });
+    if (cls.status !== "live") return res.status(409).json({ error: "This class is not live right now." });
+
+    const [have] = await pool.query("SELECT id FROM hs_class_payments WHERE class_id = ? AND user_id = ?", [cls.id, u.id]);
+    if (have.length) return res.json({ success: true });
+
+    const code = String(req.body.code || "").replace(/\s/g, "").toUpperCase();
+    if (!/^[A-Z0-9]{10}$/.test(code)) return res.status(400).json({ error: "Enter the 10-character M-Pesa confirmation code, for example QJ7ABC1234." });
+    try {
+      await pool.query("INSERT INTO hs_class_payments (class_id, user_id, code, amount) VALUES (?, ?, ?, ?)", [cls.id, u.id, code, HS_LESSON_FEE]);
+    } catch (e) {
+      if (e.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "That M-Pesa code has already been used." });
+      throw e;
+    }
+    logActivity(u.id, u.full_name, "payment", u.full_name + " paid for a high school lesson.");
+    res.json({ success: true });
+  } catch (err) {
+    console.error("HS pay error:", err.message);
+    res.status(500).json({ error: "Could not save your payment code. Please try again." });
+  }
+});
+
+app.get("/api/hs/payments", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const course = await hsCanEdit(req.session.user);
+    if (!course) return res.status(403).json({ error: "Not allowed." });
+    const [rows] = await pool.query(
+      "SELECT p.id, p.code, p.amount, p.created_at, u.full_name, u.phone, lc.title AS class_title " +
+      "FROM hs_class_payments p JOIN live_classes lc ON lc.id = p.class_id JOIN users u ON u.id = p.user_id " +
+      "WHERE lc.course_id = ? ORDER BY p.created_at DESC LIMIT 300", [course.id]);
+    res.json({ payments: rows });
+  } catch (err) {
+    console.error("HS payments error:", err.message);
+    res.status(500).json({ error: "Could not load payments." });
+  }
+});
+
+app.post("/api/hs/payments/:id/revoke", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const course = await hsCanEdit(req.session.user);
+    if (!course) return res.status(403).json({ error: "Not allowed." });
+    await pool.query(
+      "DELETE FROM hs_class_payments WHERE id = ? AND class_id IN (SELECT id FROM live_classes WHERE course_id = ?)", [req.params.id, course.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("HS revoke error:", err.message);
+    res.status(500).json({ error: "Could not revoke that payment." });
   }
 });
 
