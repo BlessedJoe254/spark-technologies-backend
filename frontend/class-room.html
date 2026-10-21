@@ -52,7 +52,7 @@
             width: "100%",
             height: "100%",
             userInfo: { displayName: d.displayName },
-            configOverwrite: { prejoinPageEnabled: false }
+            configOverwrite: d.moderator ? { prejoinPageEnabled: false } : { prejoinPageEnabled: false, toolbarButtons: ["microphone", "camera", "chat", "raisehand", "tileview", "fullscreen", "hangup"], disableInviteFunctions: true, remoteVideoMenu: { disableKick: true, disableGrantModerator: true }, disableRemoteMute: true, startScreenSharing: false }
           });
           api.addListener("readyToClose", function () { location.href = "classes.html"; });
         };

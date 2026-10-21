@@ -2188,7 +2188,7 @@ app.post("/api/classes/:id/join", requireLogin, async (req, res) => {
       if (!enr) return res.status(403).json({ error: "You are not enrolled in this course." });
       const hsc = await hsCourse();
       if (hsc && hsc.id === cls.course_id) {
-        const [pp] = await pool.query("SELECT id FROM hs_class_payments WHERE class_id = ? AND user_id = ?", [cls.id, u.id]);
+        const [pp] = await pool.query("SELECT id FROM hs_class_payments WHERE class_id = ? AND user_id = ? AND status = 'approved'", [cls.id, u.id]);
         if (!pp.length) return res.status(402).json({ error: "Please pay KES 50 for this lesson and enter the M-Pesa code to join." });
       } else if (!enr.has_paid && enr.fee_kes !== null) return res.status(403).json({ error: "Please complete payment to join this class." });
       if (cls.status !== "live") return res.status(409).json({ error: "The trainer has not started this class yet. Try again soon." });
