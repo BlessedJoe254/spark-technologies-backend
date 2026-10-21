@@ -2778,6 +2778,17 @@ app.post("/api/hs/payments/:id/revoke", requireLogin, requireAnyRole(["trainer",
   }
 });
 
+async function ensurePaidAtColumn() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'enrollments' AND COLUMN_NAME = 'paid_at'"
+    );
+    if (cols.length === 0) await pool.query("ALTER TABLE enrollments ADD COLUMN paid_at DATETIME NULL");
+  } catch (err) { console.warn("enrollments paid_at setup failed:", err.message); }
+}
+ensurePaidAtColumn();
+
 app.listen(PORT, () => {
   console.log("Spark Technologies server running at http://localhost:" + PORT);
   ensureAdminAccount();
