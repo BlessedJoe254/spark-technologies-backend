@@ -96,3 +96,30 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
   else build();
 })();
+
+
+/* spark-hs-link: Holiday Program sidebar link */
+(function () {
+  function add() {
+    var nav = document.querySelector(".sidebar nav");
+    if (!nav || nav.querySelector('a[href="highschool.html"]')) return;
+    var links = Array.prototype.slice.call(nav.querySelectorAll("a"));
+    var live = links.filter(function (a) { return /live classes/i.test(a.textContent); })[0];
+    var a = document.createElement("a");
+    a.className = live ? live.className.replace(/\bactive\b/, "").trim() : "nav-link";
+    a.href = "highschool.html";
+    a.innerHTML = (live && live.querySelector(".dot") ? '<span class="dot"></span> ' : "") + "Holiday Program";
+    if (live && live.parentNode) live.parentNode.insertBefore(a, live.nextSibling);
+    else nav.appendChild(a);
+  }
+  fetch("/api/session", { credentials: "include" })
+    .then(function (r) { return r.json(); })
+    .then(function (s) {
+      if (!s || !s.user) return;
+      if (s.user.role === "admin" || s.user.role === "trainer") { add(); return; }
+      return fetch("/api/hs/me", { credentials: "include" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (m) { if (m && m.is_hs) add(); });
+    })
+    .catch(function () {});
+})();
