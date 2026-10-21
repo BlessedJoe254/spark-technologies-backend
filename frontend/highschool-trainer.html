@@ -62,6 +62,9 @@
           <div id="rec-list" style="display:none;margin-top:10px;"></div>
         </div>
 
+        <h2 class="hs-h">Who joined each class</h2>
+        <div id="at-box"><div class="hs-empty">Loading...</div></div>
+
         <h2 class="hs-h">Students</h2>
         <div class="hs-scroll" id="st-box"><div class="hs-empty">Loading...</div></div>
 
@@ -225,6 +228,22 @@
         });
     });
 
+    function loadAttend() {
+      j("/api/hs/attendance").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        var box = $("at-box");
+        if (!d) { box.innerHTML = '<div class="hs-empty">Could not load attendance.</div>'; return; }
+        if (!d.classes.length) { box.innerHTML = '<div class="hs-empty">No classes yet.</div>'; return; }
+        box.innerHTML = d.classes.map(function (c) {
+          var names = c.students.map(function (s) {
+            var w = new Date(s.joined_at);
+            return esc(s.name) + (isNaN(w.getTime()) ? "" : " (" + w.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + ")");
+          }).join(", ");
+          return '<div class="hs-card" style="display:block;"><b>' + esc(c.title) + '</b> <span class="hs-meta">' + esc(fmtWhen(c.scheduled_at)) + ' &middot; ' + esc(c.status) + ' &middot; ' + c.students.length + ' joined</span>' +
+            (names ? '<div class="hs-meta" style="margin-top:6px;">' + names + '</div>' : '') + '</div>';
+        }).join("");
+      });
+    }
+
     function blocked(t) { var b = $("tr-blocked"); b.style.display = "block"; b.innerHTML = t; }
 
     j("/api/session").then(function (r) { return r.json(); }).then(function (s) {
@@ -240,8 +259,8 @@
       if (!m.course_id || !m.can_edit) { blocked("You are not assigned to this program yet. Ask the admin to assign the program course to you."); return; }
       cid = m.course_id;
       $("tr-main").style.display = "block";
-      loadClasses(); loadStudents();
-      setInterval(function () { loadClasses(); }, 20000);
+      loadClasses(); loadStudents(); loadAttend();
+      setInterval(function () { loadClasses(); loadAttend(); }, 20000);
     });
   })();
   </script>

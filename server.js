@@ -2789,6 +2789,59 @@ async function ensurePaidAtColumn() {
 }
 ensurePaidAtColumn();
 
+async function ensureLiveAttendance() {
+  try {
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS live_attendance (" +
+      "id INT AUTO_INCREMENT PRIMARY KEY, class_id INT NOT NULL, user_id INT NOT NULL, " +
+      "joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
+      "UNIQUE KEY uq_class_user (class_id, user_id))"
+    );
+  } catch (err) { console.warn("live_attendance setup failed:", err.message); }
+}
+ensureLiveAttendance();
+
+app.post("/api/classes/:id/attend", requireLogin, async (req, res) => {
+  try {
+    const u = req.session.user;
+    const [[cls]] = await pool.query("SELECT id, course_id, status FROM live_classes WHERE id = ?", [req.params.id]);
+    if (!cls) return res.status(404).json({ error: "Class not found." });
+    const hs = await hsCourse();
+    const isHs = !!(hs && hs.id === cls.course_id);
+    const next = u.role === "trainer" ? (isHs ? "highschool-trainer.html" : "classes.html") : (isHs ? "highschool.html" : "classes.html");
+    if (cls.status === "live" && u.role === "student") {
+      const [enr] = await pool.query("SELECT 1 FROM enrollments WHERE user_id = ? AND course_id = ?", [u.id, cls.course_id]);
+      if (enr.length) {
+        await pool.query("INSERT INTO live_attendance (class_id, user_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE last_seen = NOW()", [cls.id, u.id]);
+      }
+    }
+    res.json({ status: cls.status, next: next });
+  } catch (err) {
+    console.error("Attend error:", err.message);
+    res.status(500).json({ error: "Could not record attendance." });
+  }
+});
+
+app.get("/api/hs/attendance", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+  try {
+    const course = await hsCanEdit(req.session.user);
+    if (!course) return res.status(403).json({ error: "Not allowed." });
+    const [rows] = await pool.query(
+      "SELECT lc.id, lc.title, lc.scheduled_at, lc.status, u.full_name, a.joined_at " +
+      "FROM live_classes lc LEFT JOIN live_attendance a ON a.class_id = lc.id LEFT JOIN users u ON u.id = a.user_id " +
+      "WHERE lc.course_id = ? AND lc.status <> 'cancelled' ORDER BY lc.scheduled_at DESC, a.joined_at LIMIT 600", [course.id]);
+    const map = {}, out = [];
+    rows.forEach(function (r) {
+      if (!map[r.id]) { map[r.id] = { id: r.id, title: r.title, scheduled_at: r.scheduled_at, status: r.status, students: [] }; out.push(map[r.id]); }
+      if (r.full_name) map[r.id].students.push({ name: r.full_name, joined_at: r.joined_at });
+    });
+    res.json({ classes: out.slice(0, 30) });
+  } catch (err) {
+    console.error("HS attendance error:", err.message);
+    res.status(500).json({ error: "Could not load attendance." });
+  }
+});
+
 app.listen(PORT, () => {
   console.log("Spark Technologies server running at http://localhost:" + PORT);
   ensureAdminAccount();
