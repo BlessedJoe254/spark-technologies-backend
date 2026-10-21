@@ -2627,7 +2627,7 @@ async function ensureHsTimetableDate() {
 }
 ensureHsTables().then(ensureHsTimetableDate);
 
-app.post("/api/hs/timetable/add", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+app.post("/api/hs/timetable/add", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     const course = await hsCanEdit(req.session.user);
     if (!course) return res.status(403).json({ error: "Only this program's trainer or the admin can edit the timetable." });
@@ -2665,7 +2665,7 @@ app.post("/api/hs/timetable/add", requireLogin, requireAnyRole(["trainer", "admi
   }
 });
 
-app.post("/api/hs/timetable/:id/delete", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
+app.post("/api/hs/timetable/:id/delete", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     const course = await hsCanEdit(req.session.user);
     if (!course) return res.status(403).json({ error: "Only this program's trainer or the admin can edit the timetable." });

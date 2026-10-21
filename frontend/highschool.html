@@ -251,7 +251,7 @@
             for (var day = 1; day <= 5; day++) {
               var here = entries.filter(function (e) { return e.day_no === day && (e.start_time + "-" + e.end_time) === k; });
               html += "<td>" + (here.length ? here.map(function (e) {
-                return '<div class="tt-c">' + (canEdit ? '<button class="tt-del" data-del="' + e.id + '">Delete</button>' : "") +
+                return '<div class="tt-c">' + (me && me.role === "admin" ? '<button class="tt-del" data-del="' + e.id + '">Delete</button>' : "") +
                   "<b>" + esc(e.subject) + "</b>" + ownerSpan(e) +
                   (e.class_date ? "<span>" + esc(fmtDate(e.class_date)) + "</span>" : "") + (e.notes ? "<span>" + esc(e.notes) + "</span>" : "") + "</div>";
               }).join("") : '<span class="none">-</span>') + "</td>";
@@ -330,7 +330,7 @@
       if (isStudent() && !me.is_hs) { location.href = "index.html"; return; }
       if (!isStudent() && !me.course_id) { document.getElementById("hs-classes").innerHTML = '<div class="hs-empty">The program course was not found.</div>'; return; }
       if (me.title) document.getElementById("hs-title").textContent = me.title;
-      if (me.role === "trainer" || me.role === "admin") document.getElementById("hs-trainer-link").style.display = "block"; if (canEdit) { document.getElementById("hs-edit").style.display = "block"; document.getElementById("hs-feenote").style.display = "none"; }
+      if (me.role === "trainer" || me.role === "admin") document.getElementById("hs-trainer-link").style.display = "block"; if (me.role === "admin") document.getElementById("hs-edit").style.display = "block"; if (canEdit) { document.getElementById("hs-feenote").style.display = "none"; }
       else document.getElementById("hs-howpay").style.display = "block";
       loadPaid(function () { loadClasses(); });
       loadTable(); loadPayments();
