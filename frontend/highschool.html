@@ -167,7 +167,7 @@
           : '<span class="hs-meta">Payment approved. Join opens when your teacher starts</span>';
       }
       if (st === "submitted") return '<span class="hs-badge scheduled" style="margin-left:0;">Submitted</span>' + (c.status === "live" ? ' <button type="button" class="btn btn-primary" data-join="' + c.id + '">Join class</button>' : "");
-      if (st === "pending") return '<span class="hs-meta">Payment awaiting admin approval</span>';
+      if (st === "pending") return '<span class="hs-badge" style="margin-left:0;background:#fff3cd;color:#8a6d00;">Pending approval</span>';
       var lbl = st === "rejected" ? "Code rejected. Send a new code" : (c.status === "live" ? "Join class (KES " + fee + ")" : "Pay KES " + fee + " now");
       return '<button type="button" class="btn btn-primary" data-join="' + c.id + '">' + lbl + "</button>";
     }
@@ -222,7 +222,7 @@
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
         .then(function (res) {
           if (!res.ok) { msg.style.color = "#b3261e"; msg.textContent = res.d.error || "Could not save your code."; btn.disabled = false; return; }
-          btn.disabled = false; msg.style.color = "#1b5e3f"; msg.textContent = "Submitted.";
+          btn.disabled = false; msg.style.color = "#1b5e3f"; msg.textContent = "Submitted. Pending approval.";
           setTimeout(function () { closePay(); loadPaid(loadClasses); }, 1800);
         })
         .catch(function () { msg.style.color = "#b3261e"; msg.textContent = "Could not reach the server."; btn.disabled = false; });

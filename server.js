@@ -2626,6 +2626,7 @@ async function ensureHsTimetableDate() {
   } catch (err) { console.warn("hs_timetable class_date setup failed:", err.message); }
 }
 ensureHsTables().then(ensureHsTimetableDate);
+ensureHsTables().then(ensureHsPayStatus);
 
 app.post("/api/hs/timetable/add", requireLogin, requireRole("admin"), async (req, res) => {
   try {
@@ -2715,8 +2716,8 @@ ensureHsPayTable();
 
 app.get("/api/hs/my-payments", requireLogin, async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT class_id FROM hs_class_payments WHERE user_id = ?", [req.session.user.id]);
-    res.json({ fee: HS_LESSON_FEE, ids: rows.map(r => r.class_id) });
+    const [rows] = await pool.query("SELECT class_id, status FROM hs_class_payments WHERE user_id = ?", [req.session.user.id]);
+    const stMap = {}; rows.forEach(r => { stMap[r.class_id] = r.status; }); res.json({ fee: HS_LESSON_FEE, ids: rows.map(r => r.class_id), status: stMap });
   } catch (err) { res.json({ fee: HS_LESSON_FEE, ids: [] }); }
 });
 
@@ -2731,12 +2732,13 @@ app.post("/api/hs/classes/:id/pay", requireLogin, requireRole("student"), async 
     if (!enr.length) return res.status(403).json({ error: "You are not enrolled in this program." });
     if (cls.status !== "live") return res.status(409).json({ error: "This class is not live right now." });
 
-    const [have] = await pool.query("SELECT id FROM hs_class_payments WHERE class_id = ? AND user_id = ?", [cls.id, u.id]);
-    if (have.length) return res.json({ success: true });
+    const [have] = await pool.query("SELECT id, status FROM hs_class_payments WHERE class_id = ? AND user_id = ?", [cls.id, u.id]);
+    if (have.length && have[0].status !== "rejected") return res.json({ success: true });
 
     const code = String(req.body.code || "").replace(/\s/g, "").toUpperCase();
     if (!/^[A-Z0-9]{10}$/.test(code)) return res.status(400).json({ error: "Enter the 10-character M-Pesa confirmation code, for example QJ7ABC1234." });
     try {
+      if (have.length) await pool.query("DELETE FROM hs_class_payments WHERE id = ?", [have[0].id]);
       await pool.query("INSERT INTO hs_class_payments (class_id, user_id, code, amount) VALUES (?, ?, ?, ?)", [cls.id, u.id, code, HS_LESSON_FEE]);
     } catch (e) {
       if (e.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "That M-Pesa code has already been used." });
@@ -2755,15 +2757,45 @@ app.get("/api/hs/payments", requireLogin, requireAnyRole(["trainer", "admin"]), 
     const course = await hsCanEdit(req.session.user);
     if (!course) return res.status(403).json({ error: "Not allowed." });
     const [rows] = await pool.query(
-      "SELECT p.id, p.code, p.amount, p.created_at, u.full_name, u.phone, lc.title AS class_title " +
+      "SELECT p.id, p.code, p.amount, p.status, p.created_at, u.full_name, u.phone, lc.title AS class_title " +
       "FROM hs_class_payments p JOIN live_classes lc ON lc.id = p.class_id JOIN users u ON u.id = p.user_id " +
       "WHERE lc.course_id = ? ORDER BY p.created_at DESC LIMIT 300", [course.id]);
-    res.json({ payments: rows });
+    res.json({ payments: rows, can_approve: req.session.user.role === "admin" });
   } catch (err) {
     console.error("HS payments error:", err.message);
     res.status(500).json({ error: "Could not load payments." });
   }
 });
+
+async function ensureHsPayStatus() {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS " +
+      "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hs_class_payments' AND COLUMN_NAME = 'status'"
+    );
+    if (cols.length === 0) {
+      await pool.query("ALTER TABLE hs_class_payments ADD COLUMN status VARCHAR(10) NOT NULL DEFAULT 'pending'");
+      await pool.query("UPDATE hs_class_payments SET status = 'approved'");
+    }
+  } catch (err) { console.warn("hs_class_payments status setup failed:", err.message); }
+}
+
+async function hsSetPayStatus(req, res, status) {
+  try {
+    const course = await hsCanEdit(req.session.user);
+    if (!course) return res.status(403).json({ error: "Not allowed." });
+    await pool.query(
+      "UPDATE hs_class_payments SET status = ? WHERE id = ? AND class_id IN (SELECT id FROM live_classes WHERE course_id = ?)",
+      [status, req.params.id, course.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("HS payment status error:", err.message);
+    res.status(500).json({ error: "Could not update that payment." });
+  }
+}
+
+app.post("/api/hs/payments/:id/approve", requireLogin, requireRole("admin"), (req, res) => hsSetPayStatus(req, res, "approved"));
+app.post("/api/hs/payments/:id/reject", requireLogin, requireRole("admin"), (req, res) => hsSetPayStatus(req, res, "rejected"));
 
 app.post("/api/hs/payments/:id/revoke", requireLogin, requireAnyRole(["trainer", "admin"]), async (req, res) => {
   try {
@@ -2827,13 +2859,13 @@ app.get("/api/hs/attendance", requireLogin, requireAnyRole(["trainer", "admin"])
     const course = await hsCanEdit(req.session.user);
     if (!course) return res.status(403).json({ error: "Not allowed." });
     const [rows] = await pool.query(
-      "SELECT lc.id, lc.title, lc.scheduled_at, lc.status, u.full_name, a.joined_at " +
+      "SELECT lc.id, lc.title, lc.scheduled_at, lc.status, u.full_name, a.joined_at, a.last_seen, TIMESTAMPDIFF(SECOND, a.last_seen, NOW()) AS idle " +
       "FROM live_classes lc LEFT JOIN live_attendance a ON a.class_id = lc.id LEFT JOIN users u ON u.id = a.user_id " +
       "WHERE lc.course_id = ? AND lc.status <> 'cancelled' ORDER BY lc.scheduled_at DESC, a.joined_at LIMIT 600", [course.id]);
     const map = {}, out = [];
     rows.forEach(function (r) {
       if (!map[r.id]) { map[r.id] = { id: r.id, title: r.title, scheduled_at: r.scheduled_at, status: r.status, students: [] }; out.push(map[r.id]); }
-      if (r.full_name) map[r.id].students.push({ name: r.full_name, joined_at: r.joined_at });
+      if (r.full_name) map[r.id].students.push({ name: r.full_name, joined_at: r.joined_at, last_seen: r.last_seen, idle: r.idle });
     });
     res.json({ classes: out.slice(0, 30) });
   } catch (err) {

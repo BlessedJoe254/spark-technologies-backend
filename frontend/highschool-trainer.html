@@ -236,7 +236,7 @@
         box.innerHTML = d.classes.map(function (c) {
           var names = c.students.map(function (s) {
             var w = new Date(s.joined_at);
-            return esc(s.name) + (isNaN(w.getTime()) ? "" : " (" + w.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + ")");
+            var l = new Date(s.last_seen), nowIn = c.status === "live" && Number(s.idle) < 40; function tm(x) { return isNaN(x.getTime()) ? "" : x.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); } return esc(s.name) + " (joined " + tm(w) + (nowIn ? " - in class now" : " - left " + tm(l)) + ")";
           }).join(", ");
           return '<div class="hs-card" style="display:block;"><b>' + esc(c.title) + '</b> <span class="hs-meta">' + esc(fmtWhen(c.scheduled_at)) + ' &middot; ' + esc(c.status) + ' &middot; ' + c.students.length + ' joined</span>' +
             (names ? '<div class="hs-meta" style="margin-top:6px;">' + names + '</div>' : '') + '</div>';
